@@ -12,9 +12,9 @@ const BLUE: [number, number, number] = [96, 165, 250];
 
 const PAGE_W = 210;
 const PAGE_H = 297;
-const MARGIN = 20;
+const MARGIN = 18;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const BOTTOM_LIMIT = PAGE_H - 25;
+const BOTTOM_LIMIT = PAGE_H - 20;
 
 function ratingColor(rating: string): [number, number, number] {
   if (rating === "present_clear") return GREEN;
@@ -41,9 +41,8 @@ export function exportAuditToPdf(result: AuditResult) {
     if (y + needed > BOTTOM_LIMIT) newPage();
   };
 
-  const lineHeight = (fontSize: number) => fontSize * 0.4;
-
-  const addText = (
+  /** Write wrapped text lines. Returns nothing, advances y. */
+  const writeText = (
     text: string,
     fontSize: number,
     style: "normal" | "bold" = "normal",
@@ -53,180 +52,201 @@ export function exportAuditToPdf(result: AuditResult) {
     doc.setFontSize(fontSize);
     doc.setFont("helvetica", style);
     doc.setTextColor(...color);
-    const maxWidth = CONTENT_W - indent;
-    const lines: string[] = doc.splitTextToSize(text, maxWidth);
-    const lh = lineHeight(fontSize);
+    const maxW = CONTENT_W - indent;
+    const lines: string[] = doc.splitTextToSize(text, maxW);
+    const lineH = fontSize * 0.45; // mm per line
 
     for (const line of lines) {
-      ensureSpace(lh + 2);
+      ensureSpace(lineH + 1);
       doc.text(line, MARGIN + indent, y);
-      y += lh + 1.2;
+      y += lineH;
     }
   };
 
-  const addSpacer = (h = 4) => { y += h; };
+  const gap = (h = 4) => { y += h; };
 
-  const addDivider = () => {
+  const divider = () => {
     ensureSpace(6);
     doc.setDrawColor(50, 50, 55);
     doc.setLineWidth(0.3);
     doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-    y += 4;
+    y += 5;
   };
 
-  // === PAGE 1 ===
+  // ────────────── PAGE 1: HEADER ──────────────
   paintBg();
 
-  // Title block
-  addText("SHIPREADY", 10, "bold", GREEN);
-  addText("GTM Readiness Audit Report", 22, "bold", WHITE);
-  addSpacer(2);
-  addText(result.url, 9, "normal", GRAY);
-  addSpacer(2);
-
+  writeText("SHIPREADY", 10, "bold", GREEN);
+  gap(2);
+  writeText("GTM Readiness Audit Report", 20, "bold", WHITE);
+  gap(2);
+  writeText(result.url, 9, "normal", GRAY);
+  gap(1);
   const now = new Date();
-  addText(`Generated ${now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, 8, "normal", LIGHT_GRAY);
-  addSpacer(8);
+  writeText(
+    `Generated ${now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+    8, "normal", LIGHT_GRAY
+  );
+  gap(8);
 
-  // Overall score
-  addDivider();
+  // ────────────── OVERALL SCORE ──────────────
+  divider();
+
   const scoreColor = result.overall_score >= 80 ? GREEN : result.overall_score >= 50 ? AMBER : RED;
-  const scoreLabel = result.overall_score >= 80 ? "Launch Ready" : result.overall_score >= 50 ? "Strong Foundation, Critical Gaps" : "Needs Significant Work";
+  const scoreLabel = result.overall_score >= 80
+    ? "Launch Ready"
+    : result.overall_score >= 50
+      ? "Strong Foundation, Critical Gaps"
+      : "Needs Significant Work";
 
-  addText("OVERALL SCORE", 9, "bold", GRAY);
-  addSpacer(1);
-  addText(`${result.overall_score} / 100`, 28, "bold", scoreColor);
-  addText(scoreLabel, 11, "normal", scoreColor);
-  addSpacer(6);
+  writeText("OVERALL SCORE", 9, "bold", GRAY);
+  gap(2);
+  writeText(`${result.overall_score} / 100`, 26, "bold", scoreColor);
+  gap(1);
+  writeText(scoreLabel, 10, "normal", scoreColor);
+  gap(8);
 
-  // What's working well
+  // ────────────── WHAT'S WORKING WELL ──────────────
   if (result.working_well.length > 0) {
-    addDivider();
-    addText("WHAT'S WORKING WELL", 10, "bold", GREEN);
-    addSpacer(2);
-    result.working_well.forEach((item) => {
-      addText(`✓  ${item}`, 9, "normal", [200, 210, 200], 0);
-      addSpacer(1);
-    });
-    addSpacer(4);
+    divider();
+    writeText("WHAT'S WORKING WELL", 10, "bold", GREEN);
+    gap(3);
+    for (const item of result.working_well) {
+      writeText(`✓  ${item}`, 9, "normal", [200, 215, 200]);
+      gap(1.5);
+    }
+    gap(4);
   }
 
-  // Scorecard summary
-  addDivider();
-  addText("SCORECARD SUMMARY", 10, "bold", WHITE);
-  addSpacer(3);
+  // ────────────── SCORECARD TABLE ──────────────
+  divider();
+  writeText("SCORECARD SUMMARY", 10, "bold", WHITE);
+  gap(4);
 
-  // Table header
+  // Table header row
+  const ROW_H = 8;
+  ensureSpace(ROW_H);
   doc.setFillColor(30, 30, 35);
-  ensureSpace(8);
-  doc.rect(MARGIN, y - 1, CONTENT_W, 7, "F");
+  doc.rect(MARGIN, y, CONTENT_W, ROW_H, "F");
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...GRAY);
-  doc.text("#", MARGIN + 2, y + 3);
-  doc.text("Category", MARGIN + 10, y + 3);
-  doc.text("Rating", MARGIN + CONTENT_W - 40, y + 3);
-  y += 8;
+  doc.text("#", MARGIN + 3, y + 5.5);
+  doc.text("Category", MARGIN + 12, y + 5.5);
+  doc.text("Rating", MARGIN + CONTENT_W - 38, y + 5.5);
+  y += ROW_H;
 
-  // Table rows
-  result.categories.forEach((cat, i) => {
-    ensureSpace(8);
+  // Table data rows
+  for (let i = 0; i < result.categories.length; i++) {
+    const cat = result.categories[i];
+    ensureSpace(ROW_H);
+
     if (i % 2 === 0) {
       doc.setFillColor(22, 22, 26);
-      doc.rect(MARGIN, y - 1, CONTENT_W, 7, "F");
+      doc.rect(MARGIN, y, CONTENT_W, ROW_H, "F");
     }
+
+    const rowMid = y + 5.5;
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...LIGHT_GRAY);
-    doc.text(String(i + 1).padStart(2, "0"), MARGIN + 2, y + 3);
+    doc.text(String(i + 1).padStart(2, "0"), MARGIN + 3, rowMid);
 
     doc.setTextColor(...WHITE);
-    doc.text(cat.category, MARGIN + 10, y + 3);
+    doc.text(cat.category, MARGIN + 12, rowMid);
 
     const rc = ratingColor(cat.rating);
     const label = ratingConfig[cat.rating].label;
     doc.setTextColor(...rc);
     doc.setFont("helvetica", "bold");
-    doc.text(label, MARGIN + CONTENT_W - 40, y + 3);
-    y += 7;
-  });
+    doc.text(label, MARGIN + CONTENT_W - 38, rowMid);
 
-  addSpacer(8);
+    y += ROW_H;
+  }
 
-  // Detailed findings
-  addDivider();
-  addText("DETAILED FINDINGS", 12, "bold", WHITE);
-  addSpacer(4);
+  gap(10);
 
-  result.categories.forEach((cat, i) => {
-    ensureSpace(20);
+  // ────────────── DETAILED FINDINGS ──────────────
+  divider();
+  writeText("DETAILED FINDINGS", 12, "bold", WHITE);
+  gap(6);
 
-    // Category header with colored bar
+  for (let i = 0; i < result.categories.length; i++) {
+    const cat = result.categories[i];
+    ensureSpace(25);
+
+    // Category header with colored accent bar
     const rc = ratingColor(cat.rating);
     doc.setFillColor(...rc);
-    doc.rect(MARGIN, y, 2, 6, "F");
+    doc.rect(MARGIN, y, 2.5, 7, "F");
 
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...WHITE);
-    doc.text(`${String(i + 1).padStart(2, "0")}. ${cat.category}`, MARGIN + 5, y + 4);
+    doc.text(`${String(i + 1).padStart(2, "0")}. ${cat.category}`, MARGIN + 6, y + 5);
 
-    const label = ratingConfig[cat.rating].label;
+    const rLabel = ratingConfig[cat.rating].label;
     doc.setFontSize(8);
     doc.setTextColor(...rc);
-    doc.text(label, MARGIN + CONTENT_W - 35, y + 4);
-    y += 9;
+    doc.text(rLabel, MARGIN + CONTENT_W - 35, y + 5);
+    y += 10;
 
     // Summary
-    addText(cat.summary, 9, "normal", GRAY, 5);
-    addSpacer(2);
+    writeText(cat.summary, 9, "normal", GRAY, 6);
+    gap(3);
 
     // Found
     if (cat.found.length > 0) {
-      addText("What We Found:", 8, "bold", GREEN, 5);
-      cat.found.forEach((item) => {
-        addText(`•  ${item}`, 8, "normal", [190, 200, 190], 9);
-      });
-      addSpacer(2);
+      writeText("What We Found:", 8, "bold", GREEN, 6);
+      gap(1);
+      for (const item of cat.found) {
+        writeText(`•  ${item}`, 8, "normal", [190, 205, 190], 10);
+        gap(0.5);
+      }
+      gap(2);
     }
 
     // Missing
     if (cat.missing.length > 0) {
-      addText("What's Missing:", 8, "bold", RED, 5);
-      cat.missing.forEach((item) => {
-        addText(`•  ${item}`, 8, "normal", [200, 170, 170], 9);
-      });
-      addSpacer(2);
+      writeText("What's Missing:", 8, "bold", RED, 6);
+      gap(1);
+      for (const item of cat.missing) {
+        writeText(`•  ${item}`, 8, "normal", [200, 170, 170], 10);
+        gap(0.5);
+      }
+      gap(2);
     }
 
     // Recommendations
     if (cat.recommendations.length > 0) {
-      addText("Recommendations:", 8, "bold", BLUE, 5);
-      cat.recommendations.forEach((item) => {
-        addText(`•  ${item}`, 8, "normal", [180, 195, 220], 9);
-      });
-      addSpacer(2);
+      writeText("Recommendations:", 8, "bold", BLUE, 6);
+      gap(1);
+      for (const item of cat.recommendations) {
+        writeText(`•  ${item}`, 8, "normal", [180, 195, 220], 10);
+        gap(0.5);
+      }
+      gap(2);
     }
 
     // Priority
-    addText(`Priority: ${cat.priority}`, 7, "bold", LIGHT_GRAY, 5);
-    addSpacer(6);
+    writeText(`Priority: ${cat.priority}`, 7, "bold", LIGHT_GRAY, 6);
+    gap(6);
 
     // Separator between categories
     if (i < result.categories.length - 1) {
+      ensureSpace(4);
       doc.setDrawColor(40, 40, 45);
       doc.setLineWidth(0.2);
-      ensureSpace(4);
-      doc.line(MARGIN + 5, y, PAGE_W - MARGIN - 5, y);
-      y += 5;
+      doc.line(MARGIN + 6, y, PAGE_W - MARGIN - 6, y);
+      y += 6;
     }
-  });
+  }
 
-  // Footer on last page
-  addSpacer(8);
-  addDivider();
-  addText("Generated by ShipReady — GTM Audit for Dev Tools", 7, "normal", LIGHT_GRAY);
-  addText("Built by Shane O'Connor @ The DevTool GTM Company", 7, "normal", LIGHT_GRAY);
+  // ────────────── FOOTER ──────────────
+  gap(8);
+  divider();
+  writeText("Generated by ShipReady — GTM Audit for Dev Tools", 7, "normal", LIGHT_GRAY);
+  writeText("Built by Shane O'Connor @ The DevTool GTM Company", 7, "normal", LIGHT_GRAY);
 
   doc.save(`shipready-audit-${new URL(result.url).hostname}.pdf`);
 }
