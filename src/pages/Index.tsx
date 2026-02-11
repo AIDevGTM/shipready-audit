@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Scan, MessageSquareText, Download } from "lucide-react";
+import { ArrowRight, Scan, MessageSquareText, Download, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProcessingState } from "@/components/audit/ProcessingState";
@@ -8,17 +8,38 @@ import { AuditResults } from "@/components/audit/AuditResults";
 import { AuditResult } from "@/lib/audit-types";
 import { useToast } from "@/hooks/use-toast";
 
+function isValidUrl(str: string): boolean {
+  try {
+    const u = new URL(str.startsWith("http") ? str : `https://${str}`);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const Index = () => {
   const [url, setUrl] = useState("");
   const [state, setState] = useState<"idle" | "processing" | "results">("idle");
   const [result, setResult] = useState<AuditResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
+    setError(null);
 
-    let formattedUrl = url.trim();
+    const trimmed = url.trim();
+    if (!trimmed) {
+      setError("Please enter a URL");
+      return;
+    }
+
+    if (!isValidUrl(trimmed)) {
+      setError("Please enter a valid URL (e.g., https://example.com)");
+      return;
+    }
+
+    let formattedUrl = trimmed;
     if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
       formattedUrl = `https://${formattedUrl}`;
     }
@@ -26,6 +47,9 @@ const Index = () => {
     setState("processing");
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000); // 90s client timeout
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-site`, {
         method: "POST",
         headers: {
@@ -33,11 +57,14 @@ const Index = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ url: formattedUrl }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeout);
+
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || "Audit failed");
+        const err = await resp.json().catch(() => ({ error: "Audit failed" }));
+        throw new Error(err.error || `Audit failed (${resp.status})`);
       }
 
       const data: AuditResult = await resp.json();
@@ -45,7 +72,11 @@ const Index = () => {
       setState("results");
     } catch (err: any) {
       console.error("Audit error:", err);
-      toast({ title: "Audit failed", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
+      if (err.name === "AbortError") {
+        toast({ title: "Timeout", description: "The audit took too long. Please try again.", variant: "destructive" });
+      } else {
+        toast({ title: "Audit failed", description: err.message || "Something went wrong.", variant: "destructive" });
+      }
       setState("idle");
     }
   };
@@ -54,6 +85,7 @@ const Index = () => {
     setState("idle");
     setResult(null);
     setUrl("");
+    setError(null);
   };
 
   if (state === "processing") {
@@ -105,14 +137,22 @@ const Index = () => {
           </p>
 
           <form onSubmit={handleSubmit} className="flex gap-2 max-w-lg mx-auto mt-8">
-            <Input
-              type="text"
-              placeholder="https://your-dev-tool.com"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="flex-1 bg-secondary border-border font-mono text-sm h-11 focus-visible:ring-primary"
-            />
-            <Button type="submit" className="h-11 px-5 gap-2 font-heading font-medium glow-green">
+            <div className="flex-1 space-y-1">
+              <Input
+                type="text"
+                placeholder="https://your-dev-tool.com"
+                value={url}
+                onChange={(e) => { setUrl(e.target.value); setError(null); }}
+                className={`bg-secondary border-border font-mono text-sm h-11 focus-visible:ring-primary ${error ? "border-destructive" : ""}`}
+                maxLength={2048}
+              />
+              {error && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> {error}
+                </p>
+              )}
+            </div>
+            <Button type="submit" className="h-11 px-5 gap-2 font-heading font-medium glow-green shrink-0">
               Run Audit <ArrowRight className="w-4 h-4" />
             </Button>
           </form>

@@ -1,11 +1,14 @@
 import { motion } from "framer-motion";
-import { ExternalLink, ArrowLeft } from "lucide-react";
+import { ExternalLink, ArrowLeft, FileDown, Copy, Check } from "lucide-react";
+import { useState } from "react";
 import { AuditResult } from "@/lib/audit-types";
 import { ScoreCircle } from "./ScoreCircle";
 import { ScorecardTable } from "./ScorecardTable";
 import { WorkingWell } from "./WorkingWell";
 import { CategoryDetail } from "./CategoryDetail";
 import { Button } from "@/components/ui/button";
+import { exportAuditToPdf } from "@/lib/export-pdf";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuditResultsProps {
   result: AuditResult;
@@ -13,6 +16,19 @@ interface AuditResultsProps {
 }
 
 export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopyLink = async () => {
+    const shareUrl = result.id
+      ? `${window.location.origin}?audit=${result.id}`
+      : window.location.href;
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    toast({ title: "Link copied!" });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 space-y-10">
       {/* Header */}
@@ -54,8 +70,15 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="text-center pt-6 border-t border-border">
+      {/* Export & Actions */}
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-6 border-t border-border">
+        <Button onClick={() => exportAuditToPdf(result)} variant="outline" className="font-mono text-sm gap-2">
+          <FileDown className="w-4 h-4" /> Download PDF
+        </Button>
+        <Button onClick={handleCopyLink} variant="outline" className="font-mono text-sm gap-2">
+          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          {copied ? "Copied!" : "Copy Link"}
+        </Button>
         <Button onClick={onReset} variant="outline" className="font-mono text-sm">
           Run Another Audit
         </Button>

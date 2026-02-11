@@ -1,7 +1,36 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+function isValidUrl(str: string): boolean {
+  try {
+    const u = new URL(str);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ShipReady/1.0; +https://shipready.dev)',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+    return resp;
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -10,32 +39,58 @@ Deno.serve(async (req) => {
 
   try {
     const { url } = await req.json();
-    if (!url) {
+
+    // Validate URL
+    if (!url || typeof url !== 'string') {
       return new Response(JSON.stringify({ error: 'URL is required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (url.length > 2048) {
+      return new Response(JSON.stringify({ error: 'URL is too long' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!isValidUrl(url)) {
+      return new Response(JSON.stringify({ error: 'Invalid URL. Please provide a valid http or https URL.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Block private/internal IPs
+    const hostname = new URL(url).hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+      return new Response(JSON.stringify({ error: 'Cannot audit internal/private URLs' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     console.log('Fetching URL:', url);
 
-    // Fetch the site HTML
-    const siteResp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ShipReady/1.0; +https://shipready.dev)',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      redirect: 'follow',
-    });
+    // Fetch the site HTML with timeout
+    let siteResp: Response;
+    try {
+      siteResp = await fetchWithTimeout(url, 15000);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        return new Response(JSON.stringify({ error: 'The site took too long to respond. Please try again.' }), {
+          status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: `Could not reach the site: ${e instanceof Error ? e.message : 'Unknown error'}` }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!siteResp.ok) {
-      return new Response(JSON.stringify({ error: `Could not fetch site: ${siteResp.status}` }), {
+      return new Response(JSON.stringify({ error: `Site returned HTTP ${siteResp.status}` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const html = await siteResp.text();
-    
-    // Truncate HTML for the LLM (keep first ~60k chars)
     const truncatedHtml = html.slice(0, 60000);
 
     console.log('HTML fetched, length:', html.length, 'truncated to:', truncatedHtml.length);
@@ -50,7 +105,7 @@ Deno.serve(async (req) => {
 
 For each category, assign a rating:
 - "present_clear" = Present & Clear (the site does this well)
-- "present_weak" = Present but Weak (attempted but insufficient)
+- "present_weak" = Present but Weak (attempted but insufficient)  
 - "missing" = Missing (not found)
 
 Score: Each "present_clear" = 10 points, "present_weak" = 5 points, "missing" = 0 points. Sum all 10 categories for overall_score (0-100).
@@ -82,7 +137,9 @@ You MUST respond with valid JSON only (no markdown, no code fences). The JSON mu
       "priority": "Quick Win" | "Important" | "Nice to Have"
     }
   ]
-}`;
+}
+
+Be thorough, specific, and constructive. Reference actual content you find on the page.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -124,7 +181,7 @@ You MUST respond with valid JSON only (no markdown, no code fences). The JSON mu
 
     console.log('AI response received, parsing...');
 
-    // Parse the JSON response (strip markdown fences if present)
+    // Parse the JSON response
     let parsed;
     try {
       const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -134,13 +191,40 @@ You MUST respond with valid JSON only (no markdown, no code fences). The JSON mu
       throw new Error('Failed to parse AI response');
     }
 
-    // Return the result with the URL
     const result = {
       url,
-      overall_score: parsed.overall_score,
+      overall_score: parsed.overall_score || 0,
       working_well: parsed.working_well || [],
       categories: parsed.categories || [],
     };
+
+    // Save to database using service role
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+      const { data: insertedAudit, error: dbError } = await supabase
+        .from('audits')
+        .insert({
+          url: result.url,
+          overall_score: result.overall_score,
+          working_well: result.working_well,
+          categories: result.categories,
+        })
+        .select('id')
+        .single();
+
+      if (dbError) {
+        console.error('DB insert error:', dbError);
+      } else {
+        (result as any).id = insertedAudit.id;
+        console.log('Audit saved with ID:', insertedAudit.id);
+      }
+    } catch (dbErr) {
+      console.error('DB save failed:', dbErr);
+      // Don't fail the request if DB save fails
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
