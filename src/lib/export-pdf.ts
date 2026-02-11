@@ -145,9 +145,9 @@ export function exportAuditToPdf(result: AuditResult) {
         : "Needs Significant Work";
 
   writeText("OVERALL SCORE", 9, "bold", GRAY);
-  gap(2);
+  gap(6);
   writeText(`${result.overall_score} / 100`, 26, "bold", scoreColor);
-  gap(1);
+  gap(3);
   writeText(scoreLabel, 10, "normal", scoreColor);
   gap(8);
 
@@ -157,7 +157,6 @@ export function exportAuditToPdf(result: AuditResult) {
     writeText("WHAT'S WORKING WELL", 10, "bold", GREEN);
     gap(3);
     for (const item of result.working_well) {
-      // ASCII-only prefix avoids encoding issues in many PDF viewers
       writeText(`- ${item}`, 9, "normal", [200, 215, 200]);
       gap(1.5);
     }
