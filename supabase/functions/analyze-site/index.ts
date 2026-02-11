@@ -61,9 +61,32 @@ Deno.serve(async (req) => {
 
     // Block private/internal IPs
     const hostname = new URL(url).hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname === '::1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.') || hostname.startsWith('169.254.') || hostname.startsWith('fe80')) {
       return new Response(JSON.stringify({ error: 'Cannot audit internal/private URLs' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Rate limiting: extract client IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('x-real-ip')
+      || 'unknown';
+
+    // Check rate limit: max 10 audits per IP per hour
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count, error: countError } = await supabase
+      .from('audits')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', clientIp)
+      .gte('created_at', oneHourAgo);
+
+    if (!countError && count !== null && count >= 10) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded. You can run up to 10 audits per hour. Please try again later.' }), {
+        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -242,12 +265,8 @@ Be thorough, specific, and constructive. Reference actual content you find on th
       categories: parsed.categories || [],
     };
 
-    // Save to database using service role
+    // Save to database (reuse supabase client from rate limiting)
     try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
-
       const { data: insertedAudit, error: dbError } = await supabase
         .from('audits')
         .insert({
@@ -255,6 +274,7 @@ Be thorough, specific, and constructive. Reference actual content you find on th
           overall_score: result.overall_score,
           working_well: result.working_well,
           categories: result.categories,
+          ip_address: clientIp,
         })
         .select('id')
         .single();
@@ -267,7 +287,6 @@ Be thorough, specific, and constructive. Reference actual content you find on th
       }
     } catch (dbErr) {
       console.error('DB save failed:', dbErr);
-      // Don't fail the request if DB save fails
     }
 
     return new Response(JSON.stringify(result), {
