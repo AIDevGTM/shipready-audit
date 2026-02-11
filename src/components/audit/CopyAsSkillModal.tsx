@@ -128,11 +128,11 @@ export const CopyAsSkillModal = ({ open, onOpenChange, result }: CopyAsSkillModa
           </div>
 
           {/* Code Preview */}
-          <ScrollArea className="flex-1 min-h-0 max-h-[400px] rounded-lg bg-background border border-border">
+          <div className="flex-1 min-h-0 max-h-[40vh] rounded-lg bg-background border border-border overflow-auto">
             <pre className="p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
               {content}
             </pre>
-          </ScrollArea>
+          </div>
         </div>
 
         {/* Actions Footer */}
