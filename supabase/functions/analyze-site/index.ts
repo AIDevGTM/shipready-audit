@@ -161,54 +161,78 @@ You MUST respond with valid JSON only (no markdown, no code fences). The JSON mu
 
 Be thorough, specific, and constructive. Reference actual content you find on the page. Call out puffery and vague claims specifically. Highlight excellent examples of specific proof with attribution.`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Analyze the following website HTML for the URL: ${url}\n\n${truncatedHtml}` },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      const errText = await aiResponse.text();
-      console.error('AI error:', aiResponse.status, errText);
-      throw new Error('AI analysis failed');
-    }
-
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in AI response');
-    }
-
-    console.log('AI response received, parsing...');
-
-    // Parse the JSON response
+    const MAX_RETRIES = 3;
     let parsed;
-    try {
-      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.error('JSON parse error:', parseErr, 'Content:', content.slice(0, 500));
-      throw new Error('Failed to parse AI response');
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(`AI attempt ${attempt}/${MAX_RETRIES}...`);
+
+      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Analyze the following website HTML for the URL: ${url}\n\n${truncatedHtml}` },
+          ],
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        if (aiResponse.status === 429) {
+          if (attempt < MAX_RETRIES) {
+            console.log('Rate limited, waiting before retry...');
+            await new Promise(r => setTimeout(r, 2000 * attempt));
+            continue;
+          }
+          return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }), {
+            status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }), {
+            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const errText = await aiResponse.text();
+        console.error('AI error:', aiResponse.status, errText);
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+        throw new Error('AI analysis failed');
+      }
+
+      const aiData = await aiResponse.json();
+      const content = aiData.choices?.[0]?.message?.content;
+
+      if (!content) {
+        console.warn(`Attempt ${attempt}: Empty AI response`);
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+        throw new Error('No content in AI response after retries');
+      }
+
+      console.log('AI response received, parsing...');
+
+      try {
+        const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        parsed = JSON.parse(cleaned);
+        break; // Success
+      } catch (parseErr) {
+        console.error(`Attempt ${attempt}: JSON parse error:`, parseErr, 'Content:', content.slice(0, 500));
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+        throw new Error('Failed to parse AI response');
+      }
     }
 
     const result = {
