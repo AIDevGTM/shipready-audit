@@ -31,7 +31,12 @@ export const CategoryDetail = ({ category, index }: CategoryDetailProps) => {
       >
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{String(index + 1).padStart(2, "0")}</span>
-          <span className="font-heading font-medium text-sm truncate">{category.category}</span>
+          <span className="font-heading font-medium text-sm truncate">
+            {category.category}
+            {category.category === "Design Partner / Early Access" && (
+              <span className="ml-1.5 text-[10px] font-mono text-muted-foreground">(early-stage only)</span>
+            )}
+          </span>
           <RatingBadge rating={category.rating} />
         </div>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 ${open ? "rotate-180" : ""}`} />
