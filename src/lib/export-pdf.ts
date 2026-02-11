@@ -22,6 +22,33 @@ function ratingColor(rating: string): [number, number, number] {
   return RED;
 }
 
+/**
+ * jsPDF built-in fonts are WinAnsi/limited Unicode.
+ * When unsupported glyphs appear (✓, •, smart quotes, em-dash), many viewers show bizarre tracking/spacing.
+ * Normalize + remap to safe ASCII to keep layout stable.
+ */
+function sanitizePdfText(input: string): string {
+  return (
+    input
+      .normalize("NFKD")
+      // Common typography
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/\u00A0/g, " ")
+      // Bullets/checkmarks
+      .replace(/\u2022/g, "-")
+      .replace(/\u2713/g, "v")
+      .replace(/\u2714/g, "v")
+      .replace(/\u2715/g, "x")
+      // Any remaining non-ASCII -> space (prevents weird kerning)
+      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ")
+      // Collapse accidental runs of spaces
+      .replace(/\s{2,}/g, " ")
+      .trimEnd()
+  );
+}
+
 export function exportAuditToPdf(result: AuditResult) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = MARGIN;
@@ -41,7 +68,7 @@ export function exportAuditToPdf(result: AuditResult) {
     if (y + needed > BOTTOM_LIMIT) newPage();
   };
 
-  /** Write wrapped text lines. Returns nothing, advances y. */
+  /** Write wrapped text lines. Advances y. */
   const writeText = (
     text: string,
     fontSize: number,
@@ -49,11 +76,15 @@ export function exportAuditToPdf(result: AuditResult) {
     color: [number, number, number] = WHITE,
     indent = 0
   ) => {
+    const safe = sanitizePdfText(text);
+    if (!safe) return;
+
     doc.setFontSize(fontSize);
     doc.setFont("helvetica", style);
     doc.setTextColor(...color);
+
     const maxW = CONTENT_W - indent;
-    const lines: string[] = doc.splitTextToSize(text, maxW);
+    const lines: string[] = doc.splitTextToSize(safe, maxW);
     const lineH = fontSize * 0.45; // mm per line
 
     for (const line of lines) {
@@ -63,7 +94,9 @@ export function exportAuditToPdf(result: AuditResult) {
     }
   };
 
-  const gap = (h = 4) => { y += h; };
+  const gap = (h = 4) => {
+    y += h;
+  };
 
   const divider = () => {
     ensureSpace(6);
@@ -84,20 +117,32 @@ export function exportAuditToPdf(result: AuditResult) {
   gap(1);
   const now = new Date();
   writeText(
-    `Generated ${now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
-    8, "normal", LIGHT_GRAY
+    `Generated ${now.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })}`,
+    8,
+    "normal",
+    LIGHT_GRAY
   );
   gap(8);
 
   // ────────────── OVERALL SCORE ──────────────
   divider();
 
-  const scoreColor = result.overall_score >= 80 ? GREEN : result.overall_score >= 50 ? AMBER : RED;
-  const scoreLabel = result.overall_score >= 80
-    ? "Launch Ready"
-    : result.overall_score >= 50
-      ? "Strong Foundation, Critical Gaps"
-      : "Needs Significant Work";
+  const scoreColor =
+    result.overall_score >= 80
+      ? GREEN
+      : result.overall_score >= 50
+        ? AMBER
+        : RED;
+  const scoreLabel =
+    result.overall_score >= 80
+      ? "Launch Ready"
+      : result.overall_score >= 50
+        ? "Strong Foundation, Critical Gaps"
+        : "Needs Significant Work";
 
   writeText("OVERALL SCORE", 9, "bold", GRAY);
   gap(2);
@@ -112,7 +157,8 @@ export function exportAuditToPdf(result: AuditResult) {
     writeText("WHAT'S WORKING WELL", 10, "bold", GREEN);
     gap(3);
     for (const item of result.working_well) {
-      writeText(`✓  ${item}`, 9, "normal", [200, 215, 200]);
+      // ASCII-only prefix avoids encoding issues in many PDF viewers
+      writeText(`- ${item}`, 9, "normal", [200, 215, 200]);
       gap(1.5);
     }
     gap(4);
@@ -123,7 +169,6 @@ export function exportAuditToPdf(result: AuditResult) {
   writeText("SCORECARD SUMMARY", 10, "bold", WHITE);
   gap(4);
 
-  // Table header row
   const ROW_H = 8;
   ensureSpace(ROW_H);
   doc.setFillColor(30, 30, 35);
@@ -136,7 +181,6 @@ export function exportAuditToPdf(result: AuditResult) {
   doc.text("Rating", MARGIN + CONTENT_W - 38, y + 5.5);
   y += ROW_H;
 
-  // Table data rows
   for (let i = 0; i < result.categories.length; i++) {
     const cat = result.categories[i];
     ensureSpace(ROW_H);
@@ -153,10 +197,10 @@ export function exportAuditToPdf(result: AuditResult) {
     doc.text(String(i + 1).padStart(2, "0"), MARGIN + 3, rowMid);
 
     doc.setTextColor(...WHITE);
-    doc.text(cat.category, MARGIN + 12, rowMid);
+    doc.text(sanitizePdfText(cat.category), MARGIN + 12, rowMid);
 
     const rc = ratingColor(cat.rating);
-    const label = ratingConfig[cat.rating].label;
+    const label = sanitizePdfText(ratingConfig[cat.rating].label);
     doc.setTextColor(...rc);
     doc.setFont("helvetica", "bold");
     doc.text(label, MARGIN + CONTENT_W - 38, rowMid);
@@ -175,7 +219,6 @@ export function exportAuditToPdf(result: AuditResult) {
     const cat = result.categories[i];
     ensureSpace(25);
 
-    // Category header with colored accent bar
     const rc = ratingColor(cat.rating);
     doc.setFillColor(...rc);
     doc.rect(MARGIN, y, 2.5, 7, "F");
@@ -183,56 +226,54 @@ export function exportAuditToPdf(result: AuditResult) {
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...WHITE);
-    doc.text(`${String(i + 1).padStart(2, "0")}. ${cat.category}`, MARGIN + 6, y + 5);
+    doc.text(
+      sanitizePdfText(`${String(i + 1).padStart(2, "0")}. ${cat.category}`),
+      MARGIN + 6,
+      y + 5
+    );
 
-    const rLabel = ratingConfig[cat.rating].label;
+    const rLabel = sanitizePdfText(ratingConfig[cat.rating].label);
     doc.setFontSize(8);
     doc.setTextColor(...rc);
     doc.text(rLabel, MARGIN + CONTENT_W - 35, y + 5);
     y += 10;
 
-    // Summary
     writeText(cat.summary, 9, "normal", GRAY, 6);
     gap(3);
 
-    // Found
     if (cat.found.length > 0) {
       writeText("What We Found:", 8, "bold", GREEN, 6);
       gap(1);
       for (const item of cat.found) {
-        writeText(`•  ${item}`, 8, "normal", [190, 205, 190], 10);
+        writeText(`- ${item}`, 8, "normal", [190, 205, 190], 10);
         gap(0.5);
       }
       gap(2);
     }
 
-    // Missing
     if (cat.missing.length > 0) {
       writeText("What's Missing:", 8, "bold", RED, 6);
       gap(1);
       for (const item of cat.missing) {
-        writeText(`•  ${item}`, 8, "normal", [200, 170, 170], 10);
+        writeText(`- ${item}`, 8, "normal", [200, 170, 170], 10);
         gap(0.5);
       }
       gap(2);
     }
 
-    // Recommendations
     if (cat.recommendations.length > 0) {
       writeText("Recommendations:", 8, "bold", BLUE, 6);
       gap(1);
       for (const item of cat.recommendations) {
-        writeText(`•  ${item}`, 8, "normal", [180, 195, 220], 10);
+        writeText(`- ${item}`, 8, "normal", [180, 195, 220], 10);
         gap(0.5);
       }
       gap(2);
     }
 
-    // Priority
     writeText(`Priority: ${cat.priority}`, 7, "bold", LIGHT_GRAY, 6);
     gap(6);
 
-    // Separator between categories
     if (i < result.categories.length - 1) {
       ensureSpace(4);
       doc.setDrawColor(40, 40, 45);
@@ -245,7 +286,7 @@ export function exportAuditToPdf(result: AuditResult) {
   // ────────────── FOOTER ──────────────
   gap(8);
   divider();
-  writeText("Generated by ShipReady — GTM Audit for Dev Tools", 7, "normal", LIGHT_GRAY);
+  writeText("Generated by ShipReady - GTM Audit for Dev Tools", 7, "normal", LIGHT_GRAY);
   writeText("Built by Shane O'Connor @ The DevTool GTM Company", 7, "normal", LIGHT_GRAY);
 
   doc.save(`shipready-audit-${new URL(result.url).hostname}.pdf`);
