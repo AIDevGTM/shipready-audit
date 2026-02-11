@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Scan, MessageSquareText, Download, AlertTriangle } from "lucide-react";
+import { ArrowRight, Scan, MessageSquareText, Download, AlertTriangle, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProcessingState } from "@/components/audit/ProcessingState";
@@ -179,8 +179,21 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-6 text-xs text-muted-foreground font-mono">
-        Built for developer tool founders, by developer tool operators
+      <footer className="text-center py-6 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Built by Shane O'Connor @{" "}
+          <a href="https://thedevtoolgtmcompany.com" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-primary transition-colors underline underline-offset-2">
+            The DevTool GTM Company
+          </a>
+        </p>
+        <a
+          href="https://www.linkedin.com/in/devtoolgtm/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Linkedin className="w-3.5 h-3.5" /> LinkedIn
+        </a>
       </footer>
     </div>
   );
