@@ -19,6 +19,9 @@ vi.mock("jspdf", () => ({
     setFont: mockSetFont,
     setTextColor: mockSetTextColor,
     setFillColor: mockSetFillColor,
+    setDrawColor: vi.fn(),
+    setLineWidth: vi.fn(),
+    line: vi.fn(),
     rect: mockRect,
     splitTextToSize: mockSplitTextToSize,
     addPage: mockAddPage,
@@ -59,7 +62,7 @@ describe("exportAuditToPdf", () => {
   it("includes the title and URL", () => {
     exportAuditToPdf(mockResult);
     const allTextCalls = mockText.mock.calls.map(c => c[0]).flat();
-    expect(allTextCalls).toContain("ShipReady GTM Audit Report");
+    expect(allTextCalls).toContain("GTM Readiness Audit Report");
     expect(allTextCalls).toContain("https://example.com");
   });
 
