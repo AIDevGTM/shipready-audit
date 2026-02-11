@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Scan, MessageSquareText, Download, AlertTriangle, Linkedin } from "lucide-react";
+import { ArrowRight, Scan, MessageSquareText, Wand2, AlertTriangle, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProcessingState } from "@/components/audit/ProcessingState";
@@ -168,7 +168,7 @@ const Index = () => {
           {[
             { icon: Scan, label: "10-Point Audit" },
             { icon: MessageSquareText, label: "Actionable Recommendations" },
-            { icon: Download, label: "Export & Share" },
+            { icon: Wand2, label: "Copy as AI Skill" },
           ].map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card text-sm text-muted-foreground">
               <Icon className="w-3.5 h-3.5 text-primary" />
