@@ -19,6 +19,7 @@ export type Database = {
           categories: Json
           created_at: string
           id: string
+          ip_address: string | null
           overall_score: number
           url: string
           working_well: Json
@@ -27,6 +28,7 @@ export type Database = {
           categories?: Json
           created_at?: string
           id?: string
+          ip_address?: string | null
           overall_score?: number
           url: string
           working_well?: Json
@@ -35,6 +37,7 @@ export type Database = {
           categories?: Json
           created_at?: string
           id?: string
+          ip_address?: string | null
           overall_score?: number
           url?: string
           working_well?: Json
