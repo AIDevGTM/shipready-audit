@@ -77,11 +77,44 @@ export type Database = {
             referencedRelation: "audits"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "skill_exports_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      audits_public: {
+        Row: {
+          categories: Json | null
+          created_at: string | null
+          id: string | null
+          overall_score: number | null
+          url: string | null
+          working_well: Json | null
+        }
+        Insert: {
+          categories?: Json | null
+          created_at?: string | null
+          id?: string | null
+          overall_score?: number | null
+          url?: string | null
+          working_well?: Json | null
+        }
+        Update: {
+          categories?: Json | null
+          created_at?: string | null
+          id?: string | null
+          overall_score?: number | null
+          url?: string | null
+          working_well?: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
