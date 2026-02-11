@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Copy, Check, Download, Wand2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Copy, Check, Download, Wand2, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,7 +29,16 @@ export const CopyAsSkillModal = ({ open, onOpenChange, result }: CopyAsSkillModa
   const [mode, setMode] = useState<SkillMode>("generic");
   const [format, setFormat] = useState<SkillFormat>("claude_skill");
   const [copied, setCopied] = useState(false);
+  const [exportCount, setExportCount] = useState<number | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("skill_exports")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => setExportCount(count ?? 0));
+  }, [open]);
 
   const content = generateSkillContent(mode, format, result);
 
@@ -142,7 +151,12 @@ export const CopyAsSkillModal = ({ open, onOpenChange, result }: CopyAsSkillModa
           >
             <Download className="w-4 h-4" /> Download File
           </Button>
-          <span className="text-xs text-muted-foreground ml-auto">
+          <span className="text-xs text-muted-foreground ml-auto flex items-center gap-1.5">
+            <Users className="w-3 h-3" />
+            {exportCount !== null && exportCount >= 50
+              ? `Used by ${exportCount} teams`
+              : "Join early adopters"}
+            <span className="mx-1">·</span>
             ship-ready.xyz
           </span>
         </div>
