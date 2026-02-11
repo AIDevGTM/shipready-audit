@@ -1,0 +1,4 @@
+project_id = "gtndkvpkdklqindceepp"
+
+[functions.analyze-site]
+verify_jwt = false

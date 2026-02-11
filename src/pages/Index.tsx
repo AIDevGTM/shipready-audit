@@ -1,12 +1,147 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowRight, Scan, MessageSquareText, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ProcessingState } from "@/components/audit/ProcessingState";
+import { AuditResults } from "@/components/audit/AuditResults";
+import { AuditResult } from "@/lib/audit-types";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+  const [url, setUrl] = useState("");
+  const [state, setState] = useState<"idle" | "processing" | "results">("idle");
+  const [result, setResult] = useState<AuditResult | null>(null);
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+
+    let formattedUrl = url.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    setState("processing");
+
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-site`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ url: formattedUrl }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || "Audit failed");
+      }
+
+      const data: AuditResult = await resp.json();
+      setResult(data);
+      setState("results");
+    } catch (err: any) {
+      console.error("Audit error:", err);
+      toast({ title: "Audit failed", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
+      setState("idle");
+    }
+  };
+
+  const handleReset = () => {
+    setState("idle");
+    setResult(null);
+    setUrl("");
+  };
+
+  if (state === "processing") {
+    return (
+      <div className="min-h-screen bg-background bg-grid">
+        <ProcessingState />
       </div>
+    );
+  }
+
+  if (state === "results" && result) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AuditResults result={result} onReset={handleReset} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background bg-grid flex flex-col">
+      {/* Nav */}
+      <header className="flex items-center justify-between px-6 py-4">
+        <span className="font-heading font-bold text-lg tracking-tight">
+          <span className="text-gradient">Ship</span>Ready
+        </span>
+      </header>
+
+      {/* Hero */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 pb-20">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center max-w-2xl mx-auto space-y-6"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-secondary/50 text-xs font-mono text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            10-point GTM audit for dev tools
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl font-heading font-bold leading-tight tracking-tight">
+            Is your dev tool website
+            <br />
+            <span className="text-gradient">ready to convert?</span>
+          </h1>
+
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Paste your dev tool's URL. Get a GTM audit in 60 seconds.
+          </p>
+
+          <form onSubmit={handleSubmit} className="flex gap-2 max-w-lg mx-auto mt-8">
+            <Input
+              type="text"
+              placeholder="https://your-dev-tool.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="flex-1 bg-secondary border-border font-mono text-sm h-11 focus-visible:ring-primary"
+            />
+            <Button type="submit" className="h-11 px-5 gap-2 font-heading font-medium glow-green">
+              Run Audit <ArrowRight className="w-4 h-4" />
+            </Button>
+          </form>
+        </motion.div>
+
+        {/* Feature pills */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="flex flex-wrap gap-3 justify-center mt-12"
+        >
+          {[
+            { icon: Scan, label: "10-Point Audit" },
+            { icon: MessageSquareText, label: "Actionable Recommendations" },
+            { icon: Download, label: "Export & Share" },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card text-sm text-muted-foreground">
+              <Icon className="w-3.5 h-3.5 text-primary" />
+              {label}
+            </div>
+          ))}
+        </motion.div>
+      </main>
+
+      {/* Footer */}
+      <footer className="text-center py-6 text-xs text-muted-foreground font-mono">
+        Built for developer tool founders, by developer tool operators
+      </footer>
     </div>
   );
 };
