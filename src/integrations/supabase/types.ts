@@ -41,6 +41,41 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_exports: {
+        Row: {
+          action: string
+          audit_id: string | null
+          created_at: string
+          format: string
+          id: string
+          mode: string
+        }
+        Insert: {
+          action: string
+          audit_id?: string | null
+          created_at?: string
+          format: string
+          id?: string
+          mode: string
+        }
+        Update: {
+          action?: string
+          audit_id?: string | null
+          created_at?: string
+          format?: string
+          id?: string
+          mode?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_exports_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

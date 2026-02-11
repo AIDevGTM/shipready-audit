@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { ExternalLink, ArrowLeft, FileDown, Copy, Check } from "lucide-react";
+import { ExternalLink, ArrowLeft, FileDown, Copy, Check, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { AuditResult } from "@/lib/audit-types";
 import { ScoreCircle } from "./ScoreCircle";
 import { ScorecardTable } from "./ScorecardTable";
 import { WorkingWell } from "./WorkingWell";
 import { CategoryDetail } from "./CategoryDetail";
+import { CopyAsSkillModal } from "./CopyAsSkillModal";
 import { Button } from "@/components/ui/button";
 import { exportAuditToPdf } from "@/lib/export-pdf";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ interface AuditResultsProps {
 
 export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
   const [copied, setCopied] = useState(false);
+  const [skillModalOpen, setSkillModalOpen] = useState(false);
   const { toast } = useToast();
 
   const handleCopyLink = async () => {
@@ -72,6 +74,9 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
 
       {/* Export & Actions */}
       <div className="flex flex-wrap items-center justify-center gap-3 pt-6 border-t border-border">
+        <Button onClick={() => setSkillModalOpen(true)} variant="outline" className="font-mono text-sm gap-2">
+          <Wand2 className="w-4 h-4" /> Copy as Skill
+        </Button>
         <Button onClick={() => exportAuditToPdf(result)} variant="outline" className="font-mono text-sm gap-2">
           <FileDown className="w-4 h-4" /> Download PDF
         </Button>
@@ -83,6 +88,8 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
           Run Another Audit
         </Button>
       </div>
+
+      <CopyAsSkillModal open={skillModalOpen} onOpenChange={setSkillModalOpen} result={result} />
     </div>
   );
 };
