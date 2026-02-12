@@ -24,23 +24,23 @@ const History = () => {
 
   useEffect(() => {
     const fetchAudits = async () => {
-      const { data, error } = await supabase
-        .from("audits_public")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (!error && data) {
-        setAudits(
-          data.map((d) => ({
-            id: d.id!,
-            url: d.url!,
-            overall_score: d.overall_score ?? 0,
-            working_well: (d.working_well as string[]) ?? [],
-            categories: (d.categories as any[]) ?? [],
-            created_at: d.created_at!,
-          }))
-        );
+      try {
+        const res = await supabase.functions.invoke("get-audit-history");
+        const data = res.data;
+        if (Array.isArray(data)) {
+          setAudits(
+            data.map((d: any) => ({
+              id: d.id,
+              url: d.url,
+              overall_score: d.overall_score ?? 0,
+              working_well: (d.working_well as string[]) ?? [],
+              categories: (d.categories as any[]) ?? [],
+              created_at: d.created_at,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch audit history:", err);
       }
       setLoading(false);
     };
