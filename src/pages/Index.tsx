@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Scan, MessageSquareText, Wand2, AlertTriangle, Linkedin, Clock } from "lucide-react";
+import { ArrowRight, Scan, MessageSquareText, Wand2, AlertTriangle, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProcessingState } from "@/components/audit/ProcessingState";
@@ -112,12 +111,6 @@ const Index = () => {
         <span className="font-heading font-bold text-lg tracking-tight">
           <span className="text-gradient">Ship</span>Ready
         </span>
-        <Link
-          to="/history"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-mono"
-        >
-          <Clock className="w-3.5 h-3.5" /> History
-        </Link>
       </header>
 
       {/* Hero */}
