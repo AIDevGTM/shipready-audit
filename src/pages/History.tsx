@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Clock, TrendingUp } from "lucide-react";
+import { ArrowLeft, ExternalLink, Clock, TrendingUp, GitCompareArrows, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AuditResult } from "@/lib/audit-types";
 import { getScoreColor, getScoreLabel } from "@/lib/audit-types";
 import { AuditResults } from "@/components/audit/AuditResults";
+import { AuditComparison } from "@/components/audit/AuditComparison";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 interface AuditRow {
   id: string;
@@ -21,6 +23,9 @@ const History = () => {
   const [audits, setAudits] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAudit, setSelectedAudit] = useState<AuditResult | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<AuditRow[]>([]);
+  const [comparing, setComparing] = useState(false);
 
   useEffect(() => {
     const fetchAudits = async () => {
@@ -47,16 +52,47 @@ const History = () => {
     fetchAudits();
   }, []);
 
+  const toAuditResult = (row: AuditRow): AuditResult => ({
+    id: row.id,
+    url: row.url,
+    overall_score: row.overall_score,
+    working_well: row.working_well,
+    categories: row.categories as any,
+    created_at: row.created_at,
+  });
+
   const handleViewAudit = (audit: AuditRow) => {
-    setSelectedAudit({
-      id: audit.id,
-      url: audit.url,
-      overall_score: audit.overall_score,
-      working_well: audit.working_well,
-      categories: audit.categories as any,
-      created_at: audit.created_at,
-    });
+    if (compareMode) {
+      const alreadySelected = compareSelection.find((a) => a.id === audit.id);
+      if (alreadySelected) {
+        setCompareSelection(compareSelection.filter((a) => a.id !== audit.id));
+        return;
+      }
+      const next = [...compareSelection, audit];
+      if (next.length === 2) {
+        setCompareSelection(next);
+        setComparing(true);
+      } else {
+        setCompareSelection(next);
+      }
+      return;
+    }
+    setSelectedAudit(toAuditResult(audit));
   };
+
+  if (comparing && compareSelection.length === 2) {
+    return (
+      <AuditComparison
+        auditA={toAuditResult(compareSelection[0])}
+        auditB={toAuditResult(compareSelection[1])}
+        onBack={() => {
+          setComparing(false);
+          setCompareSelection([]);
+          setCompareMode(false);
+        }}
+      />
+    );
+  }
 
   if (selectedAudit) {
     return (
@@ -85,6 +121,8 @@ const History = () => {
     }
   };
 
+  const isSelected = (id: string) => compareSelection.some((a) => a.id === id);
+
   return (
     <div className="min-h-screen bg-background bg-grid flex flex-col">
       {/* Nav */}
@@ -106,11 +144,28 @@ const History = () => {
           >
             <ArrowLeft className="w-4 h-4" /> Back to audit
           </Link>
-          <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" /> Audit History
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" /> Audit History
+            </h1>
+            {audits.length >= 2 && (
+              <Button
+                variant={compareMode ? "default" : "outline"}
+                size="sm"
+                className="font-mono text-xs gap-1.5"
+                onClick={() => {
+                  setCompareMode(!compareMode);
+                  setCompareSelection([]);
+                }}
+              >
+                {compareMode ? <><X className="w-3 h-3" /> Cancel</> : <><GitCompareArrows className="w-3.5 h-3.5" /> Compare</>}
+              </Button>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
-            All past audits — click any to view full results.
+            {compareMode
+              ? `Select 2 audits to compare (${compareSelection.length}/2 selected)`
+              : "All past audits — click any to view full results."}
           </p>
         </motion.div>
 
@@ -142,6 +197,7 @@ const History = () => {
             {audits.map((audit, i) => {
               const scoreColor = getScoreColor(audit.overall_score);
               const { label } = getScoreLabel(audit.overall_score);
+              const selected = isSelected(audit.id);
               return (
                 <motion.button
                   key={audit.id}
@@ -149,8 +205,23 @@ const History = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
                   onClick={() => handleViewAudit(audit)}
-                  className="w-full text-left flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:bg-secondary/50 transition-colors group"
+                  className={`w-full text-left flex items-center gap-4 p-4 rounded-lg border transition-colors group ${
+                    selected
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card hover:bg-secondary/50"
+                  }`}
                 >
+                  {/* Compare checkbox */}
+                  {compareMode && (
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        selected ? "border-primary bg-primary" : "border-muted-foreground"
+                      }`}
+                    >
+                      {selected && <span className="text-primary-foreground text-xs font-bold">✓</span>}
+                    </div>
+                  )}
+
                   {/* Score */}
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-heading font-bold border-2 shrink-0"
@@ -168,10 +239,7 @@ const History = () => {
                       <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
-                      <span
-                        className="text-xs font-medium"
-                        style={{ color: scoreColor }}
-                      >
+                      <span className="text-xs font-medium" style={{ color: scoreColor }}>
                         {label}
                       </span>
                       <span className="text-xs text-muted-foreground">
