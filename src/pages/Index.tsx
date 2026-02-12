@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Scan, MessageSquareText, Wand2, AlertTriangle, Linkedin } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProcessingState } from "@/components/audit/ProcessingState";
@@ -23,6 +24,44 @@ const Index = () => {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Load shared audit from ?audit=<id> query param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auditId = params.get("audit");
+    if (!auditId) return;
+
+    const loadAudit = async () => {
+      setState("processing");
+      try {
+        const { data, error } = await supabase
+          .from("audits_public")
+          .select("*")
+          .eq("id", auditId)
+          .single();
+
+        if (error || !data) {
+          toast({ title: "Audit not found", description: "This audit link may be invalid or expired.", variant: "destructive" });
+          setState("idle");
+          return;
+        }
+
+        setResult({
+          id: data.id!,
+          url: data.url!,
+          overall_score: data.overall_score!,
+          categories: data.categories as unknown as AuditResult["categories"],
+          working_well: data.working_well as unknown as AuditResult["working_well"],
+        });
+        setState("results");
+      } catch {
+        toast({ title: "Failed to load audit", variant: "destructive" });
+        setState("idle");
+      }
+    };
+
+    loadAudit();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
