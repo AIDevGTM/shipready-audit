@@ -116,33 +116,39 @@ Deno.serve(async (req) => {
     const html = await siteResp.text();
     console.log('HTML fetched, length:', html.length);
 
-    // Try to also fetch /pricing page for better pricing detection
+    // Fetch supplementary subpages for better category detection
     const baseUrl = new URL(url);
-    const pricingUrls = [
-      new URL('/pricing', baseUrl.origin).toString(),
-      new URL('/plans', baseUrl.origin).toString(),
+    const subpages: { paths: string[]; label: string; maxLen: number }[] = [
+      { paths: ['/pricing', '/plans'], label: 'PRICING PAGE', maxLen: 20000 },
+      { paths: ['/docs', '/documentation', '/developers'], label: 'DOCS PAGE', maxLen: 15000 },
+      { paths: ['/security', '/trust', '/compliance'], label: 'SECURITY PAGE', maxLen: 15000 },
     ];
 
-    let pricingHtml = '';
-    for (const pricingUrl of pricingUrls) {
-      if (pricingUrl === url) continue; // skip if already the same page
-      try {
-        const pricingResp = await fetchWithTimeout(pricingUrl, 8000);
-        if (pricingResp.ok) {
-          const pText = await pricingResp.text();
-          pricingHtml = pText.slice(0, 20000);
-          console.log('Pricing page fetched from:', pricingUrl, 'length:', pText.length);
-          break; // use first successful one
+    const fetchedSubpages: { label: string; html: string }[] = [];
+
+    for (const subpage of subpages) {
+      for (const path of subpage.paths) {
+        const subUrl = new URL(path, baseUrl.origin).toString();
+        if (subUrl === url) continue;
+        try {
+          const resp = await fetchWithTimeout(subUrl, 8000);
+          if (resp.ok) {
+            const text = await resp.text();
+            fetchedSubpages.push({ label: subpage.label, html: text.slice(0, subpage.maxLen) });
+            console.log(`${subpage.label} fetched from: ${subUrl}, length: ${text.length}`);
+            break;
+          }
+        } catch {
+          // subpage doesn't exist
         }
-      } catch {
-        // ignore - pricing page doesn't exist
       }
     }
 
     const truncatedHtml = html.slice(0, 50000);
-    const combinedHtml = pricingHtml
-      ? `${truncatedHtml}\n\n<!-- PRICING PAGE CONTENT (from separate /pricing or /plans page) -->\n${pricingHtml}`
-      : truncatedHtml;
+    let combinedHtml = truncatedHtml;
+    for (const sp of fetchedSubpages) {
+      combinedHtml += `\n\n<!-- ${sp.label} CONTENT (from separate subpage) -->\n${sp.html}`;
+    }
 
     console.log('Combined HTML length:', combinedHtml.length);
 
@@ -228,7 +234,7 @@ Be thorough, specific, and constructive. Reference actual content you find on th
           model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Analyze the following website HTML for the URL: ${url}\n\nNote: If a separate pricing/plans page was found, its content is included below the main page content, marked with a comment.\n\n${combinedHtml}` },
+            { role: 'user', content: `Analyze the following website HTML for the URL: ${url}\n\nNote: Supplementary subpages (pricing, docs, security) may be included below the main page content, each marked with an HTML comment. Use all available content for your analysis.\n\n${combinedHtml}` },
           ],
         }),
       });
