@@ -114,9 +114,37 @@ Deno.serve(async (req) => {
     }
 
     const html = await siteResp.text();
-    const truncatedHtml = html.slice(0, 60000);
+    console.log('HTML fetched, length:', html.length);
 
-    console.log('HTML fetched, length:', html.length, 'truncated to:', truncatedHtml.length);
+    // Try to also fetch /pricing page for better pricing detection
+    const baseUrl = new URL(url);
+    const pricingUrls = [
+      new URL('/pricing', baseUrl.origin).toString(),
+      new URL('/plans', baseUrl.origin).toString(),
+    ];
+
+    let pricingHtml = '';
+    for (const pricingUrl of pricingUrls) {
+      if (pricingUrl === url) continue; // skip if already the same page
+      try {
+        const pricingResp = await fetchWithTimeout(pricingUrl, 8000);
+        if (pricingResp.ok) {
+          const pText = await pricingResp.text();
+          pricingHtml = pText.slice(0, 20000);
+          console.log('Pricing page fetched from:', pricingUrl, 'length:', pText.length);
+          break; // use first successful one
+        }
+      } catch {
+        // ignore - pricing page doesn't exist
+      }
+    }
+
+    const truncatedHtml = html.slice(0, 50000);
+    const combinedHtml = pricingHtml
+      ? `${truncatedHtml}\n\n<!-- PRICING PAGE CONTENT (from separate /pricing or /plans page) -->\n${pricingHtml}`
+      : truncatedHtml;
+
+    console.log('Combined HTML length:', combinedHtml.length);
 
     // Call Lovable AI for analysis
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -200,7 +228,7 @@ Be thorough, specific, and constructive. Reference actual content you find on th
           model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Analyze the following website HTML for the URL: ${url}\n\n${truncatedHtml}` },
+            { role: 'user', content: `Analyze the following website HTML for the URL: ${url}\n\nNote: If a separate pricing/plans page was found, its content is included below the main page content, marked with a comment.\n\n${combinedHtml}` },
           ],
         }),
       });
