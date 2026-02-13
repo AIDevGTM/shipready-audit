@@ -218,13 +218,7 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-6 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Built by Shane O'Connor @{" "}
-          <a href="https://www.memco.ai/" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-primary transition-colors underline underline-offset-2">
-            The Memory Company
-          </a>
-        </p>
+      <footer className="text-center py-6">
         <a
           href="https://www.linkedin.com/in/devtoolgtm/"
           target="_blank"
