@@ -23,7 +23,7 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
 
   const handleCopyLink = async () => {
     const shareUrl = result.id
-      ? `${window.location.origin}?audit=${result.id}`
+      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-audit?id=${result.id}`
       : window.location.href;
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
