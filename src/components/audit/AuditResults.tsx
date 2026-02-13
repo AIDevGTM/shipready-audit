@@ -23,8 +23,9 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
   const { toast } = useToast();
 
   const handleCopyLink = async () => {
+    const appOrigin = "https://ship-readyxyz.lovable.app";
     const shareUrl = result.id
-      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-audit?id=${result.id}`
+      ? `${appOrigin}/?audit=${result.id}`
       : window.location.href;
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -32,7 +33,6 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
       toast({ title: "Link copied!" });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for environments where clipboard API is blocked
       const textarea = document.createElement("textarea");
       textarea.value = shareUrl;
       textarea.style.position = "fixed";
