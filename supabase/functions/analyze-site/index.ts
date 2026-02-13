@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
     }
 
     let finalHtml = html;
+    let usedFirecrawl = false;
 
     // Check if H1 is missing (likely a client-side rendered site)
     const h1Check = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
@@ -167,6 +168,7 @@ Deno.serve(async (req) => {
             if (renderedHtml) {
               console.log('Firecrawl returned rendered HTML, length:', renderedHtml.length);
               finalHtml = renderedHtml;
+              usedFirecrawl = true;
             }
           } else {
             console.warn('Firecrawl request failed:', fcResp.status);
@@ -350,6 +352,7 @@ Be thorough, specific, and constructive. Reference actual content you find on th
       overall_score: parsed.overall_score || 0,
       working_well: parsed.working_well || [],
       categories: parsed.categories || [],
+      rendered_with_firecrawl: usedFirecrawl,
     };
 
     // Save to database (reuse supabase client from rate limiting)

@@ -16,6 +16,7 @@ export interface AuditResult {
   overall_score: number;
   working_well: string[];
   categories: CategoryRating[];
+  rendered_with_firecrawl?: boolean;
   created_at?: string;
 }
 

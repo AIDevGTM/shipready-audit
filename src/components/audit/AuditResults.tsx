@@ -49,6 +49,11 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
             <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mt-1 font-mono">
               {result.url} <ExternalLink className="w-3 h-3" />
             </a>
+            {result.rendered_with_firecrawl && (
+              <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-mono text-accent-foreground bg-accent/50 px-2 py-0.5 rounded-full">
+                🔥 JS-rendered content detected — analyzed with Firecrawl
+              </span>
+            )}
           </div>
           <ScoreCircle score={result.overall_score} />
         </div>
