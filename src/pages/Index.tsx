@@ -38,7 +38,7 @@ const Index = () => {
           .from("audits_public")
           .select("*")
           .eq("id", auditId)
-          .single();
+          .maybeSingle();
 
         if (error || !data) {
           toast({ title: "Audit not found", description: "This audit link may be invalid or expired.", variant: "destructive" });
