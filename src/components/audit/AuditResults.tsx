@@ -26,10 +26,25 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
     const shareUrl = result.id
       ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-audit?id=${result.id}`
       : window.location.href;
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    toast({ title: "Link copied!" });
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast({ title: "Link copied!" });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for environments where clipboard API is blocked
+      const textarea = document.createElement("textarea");
+      textarea.value = shareUrl;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      toast({ title: "Link copied!" });
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
