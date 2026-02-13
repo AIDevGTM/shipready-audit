@@ -2,3 +2,6 @@ project_id = "gtndkvpkdklqindceepp"
 
 [functions.analyze-site]
 verify_jwt = false
+
+[functions.og-audit]
+verify_jwt = false
