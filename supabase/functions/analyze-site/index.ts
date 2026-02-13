@@ -145,7 +145,22 @@ Deno.serve(async (req) => {
     }
 
     const truncatedHtml = html.slice(0, 50000);
-    let combinedHtml = truncatedHtml;
+
+    // Extract key structural elements to help the AI distinguish H1 from meta/nav text
+    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i)
+      || html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i);
+
+    const structuralHints = `
+<!-- STRUCTURAL ANALYSIS (extracted elements to help identify the actual page structure) -->
+<!-- HTML <title> tag: ${titleMatch ? titleMatch[1].trim().replace(/</g, '&lt;') : 'Not found'} -->
+<!-- HTML <h1> tag (the ACTUAL visible headline): ${h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : 'Not found'} -->
+<!-- Meta description: ${metaDescMatch ? metaDescMatch[1].trim() : 'Not found'} -->
+<!-- IMPORTANT: The <h1> tag above is the REAL headline visible to users. The <title> tag and meta description are for SEO/browser tabs only. Always use the <h1> content when reporting what headline the site shows. -->
+`;
+
+    let combinedHtml = structuralHints + '\n' + truncatedHtml;
     for (const sp of fetchedSubpages) {
       combinedHtml += `\n\n<!-- ${sp.label} CONTENT (from separate subpage) -->\n${sp.html}`;
     }
@@ -159,6 +174,9 @@ Deno.serve(async (req) => {
     }
 
     const systemPrompt = `You are a GTM (Go-To-Market) readiness auditor for developer tool companies. You will analyze the HTML content of a website and produce a structured audit across 10 dimensions.
+
+CRITICAL: IDENTIFYING THE REAL HEADLINE
+The HTML will include extracted structural hints at the top showing the <h1> tag, <title> tag, and meta description separately. The <h1> tag is the ACTUAL visible headline users see on the page. Do NOT confuse the <title> tag (shown in browser tabs/search results) or meta description with the main headline. When reporting what the site's headline or positioning says, ALWAYS reference the <h1> content, not the <title> or meta tags. Many sites have different text in their <title> vs <h1> — the <h1> is what matters for messaging analysis.
 
 CRITICAL SCORING PRINCIPLES — apply these across ALL categories:
 
