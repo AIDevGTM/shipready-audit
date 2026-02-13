@@ -218,7 +218,10 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-6">
+      <footer className="text-center py-6 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Built by Shane O'Connor
+        </p>
         <a
           href="https://www.linkedin.com/in/devtoolgtm/"
           target="_blank"
