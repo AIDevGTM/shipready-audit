@@ -5,6 +5,7 @@ import { AuditResult } from "@/lib/audit-types";
 import { ScoreCircle } from "./ScoreCircle";
 import { ScorecardTable } from "./ScorecardTable";
 import { WorkingWell } from "./WorkingWell";
+import { NeedsWork } from "./NeedsWork";
 import { CategoryDetail } from "./CategoryDetail";
 import { CopyAsSkillModal } from "./CopyAsSkillModal";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,9 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
 
       {/* Working Well */}
       <WorkingWell items={result.working_well} />
+
+      {/* Needs Work */}
+      <NeedsWork categories={result.categories} />
 
       {/* Scorecard */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
