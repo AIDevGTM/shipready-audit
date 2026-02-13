@@ -144,13 +144,48 @@ Deno.serve(async (req) => {
       }
     }
 
-    const truncatedHtml = html.slice(0, 50000);
+    let finalHtml = html;
 
-    // Extract key structural elements to help the AI distinguish H1 from meta/nav text
-    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i)
-      || html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i);
+    // Check if H1 is missing (likely a client-side rendered site)
+    const h1Check = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    if (!h1Check) {
+      console.log('No <h1> found in fetched HTML — attempting Firecrawl for JS-rendered content...');
+      const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+      if (FIRECRAWL_API_KEY) {
+        try {
+          const fcResp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url, formats: ['html'], waitFor: 3000 }),
+          });
+          if (fcResp.ok) {
+            const fcData = await fcResp.json();
+            const renderedHtml = fcData.data?.html || fcData.html;
+            if (renderedHtml) {
+              console.log('Firecrawl returned rendered HTML, length:', renderedHtml.length);
+              finalHtml = renderedHtml;
+            }
+          } else {
+            console.warn('Firecrawl request failed:', fcResp.status);
+          }
+        } catch (fcErr) {
+          console.warn('Firecrawl fallback error:', fcErr);
+        }
+      } else {
+        console.warn('FIRECRAWL_API_KEY not configured, skipping JS-render fallback');
+      }
+    }
+
+    const truncatedHtml = finalHtml.slice(0, 50000);
+
+    // Extract key structural elements
+    const h1Match = finalHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    const titleMatch = finalHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const metaDescMatch = finalHtml.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i)
+      || finalHtml.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i);
 
     const structuralHints = `
 <!-- STRUCTURAL ANALYSIS (extracted elements to help identify the actual page structure) -->
