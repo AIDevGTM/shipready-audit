@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CompetitorComparisonProps {
   primaryResult: AuditResult;
   onClose: () => void;
+  onResultsChange?: (results: AuditResult[]) => void;
 }
 
 function isValidUrl(str: string): boolean {
@@ -30,7 +31,7 @@ function getDomain(url: string): string {
   }
 }
 
-export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorComparisonProps) => {
+export const CompetitorComparison = ({ primaryResult, onClose, onResultsChange }: CompetitorComparisonProps) => {
   const [competitorUrls, setCompetitorUrls] = useState<string[]>([""]);
   const [competitorResults, setCompetitorResults] = useState<AuditResult[]>([]);
   const [isAuditing, setIsAuditing] = useState(false);
@@ -116,6 +117,7 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
     }
 
     setCompetitorResults(results);
+    onResultsChange?.(results);
     setIsAuditing(false);
     setCurrentAuditIndex(-1);
   };
@@ -174,7 +176,7 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
         <div className="flex items-center justify-between">
           <h2 className="font-heading font-semibold text-lg">Competitor Comparison</h2>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setCompetitorResults([]); setCompetitorUrls([""]); setErrors([null]); }} className="text-xs gap-1.5 font-mono">
+            <Button variant="outline" size="sm" onClick={() => { setCompetitorResults([]); onResultsChange?.([]); setCompetitorUrls([""]); setErrors([null]); }} className="text-xs gap-1.5 font-mono">
               <GitCompareArrows className="w-3.5 h-3.5" /> Re-compare
             </Button>
             <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-muted-foreground">

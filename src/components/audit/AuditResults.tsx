@@ -22,6 +22,7 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
   const [copied, setCopied] = useState(false);
   const [skillModalOpen, setSkillModalOpen] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [competitorResults, setCompetitorResults] = useState<AuditResult[]>([]);
   const { toast } = useToast();
 
   const handleCopyLink = async () => {
@@ -100,7 +101,7 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
 
       {/* Competitor Comparison */}
       {showComparison && (
-        <CompetitorComparison primaryResult={result} onClose={() => setShowComparison(false)} />
+        <CompetitorComparison primaryResult={result} onClose={() => setShowComparison(false)} onResultsChange={setCompetitorResults} />
       )}
 
       {/* Export & Actions */}
@@ -113,7 +114,7 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
         <Button onClick={() => setSkillModalOpen(true)} variant="outline" className="font-mono text-sm gap-2">
           <Wand2 className="w-4 h-4" /> Copy as Skill
         </Button>
-        <Button onClick={() => exportAuditToPdf(result)} variant="outline" className="font-mono text-sm gap-2">
+        <Button onClick={() => exportAuditToPdf(result, competitorResults.length > 0 ? competitorResults : undefined)} variant="outline" className="font-mono text-sm gap-2">
           <FileDown className="w-4 h-4" /> Download PDF
         </Button>
         <Button onClick={handleCopyLink} variant="outline" className="font-mono text-sm gap-2">
