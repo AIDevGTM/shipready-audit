@@ -99,4 +99,39 @@ describe("exportAuditToPdf", () => {
     expect(allTextCalls.some((t: string) => t.includes("Good headline"))).toBe(true);
     expect(allTextCalls.some((t: string) => t.includes("No pricing page"))).toBe(true);
   });
+
+  it("includes competitive insights in PDF when competitors are provided", () => {
+    const competitor: AuditResult = {
+      url: "https://amplitude.com",
+      overall_score: 50,
+      working_well: ["Good analytics"],
+      categories: [
+        { category: "Positioning & Messaging", rating: "present_weak", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Value Prop & Outcomes", rating: "present_weak", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Target Personas & Use Cases", rating: "present_clear", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Product & Feature Clarity", rating: "present_clear", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Pricing & Plans", rating: "present_weak", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Design Partner / Early Access", rating: "missing", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Social Proof & Credibility", rating: "present_clear", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Conversion Paths & CTAs", rating: "present_clear", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Content, SEO & Readability", rating: "present_clear", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+        { category: "Trust, Security & Compliance", rating: "present_clear", summary: "s", found: [], missing: [], recommendations: [], priority: "Important" },
+      ],
+    };
+
+    exportAuditToPdf(mockResult, [competitor]);
+    const allTextCalls = mockText.mock.calls.map(c => c[0]).flat();
+
+    // Should have competitive insights header
+    expect(allTextCalls.some((t: string) => t.includes("COMPETITIVE INSIGHTS"))).toBe(true);
+
+    // Primary has present_clear for Pricing, competitor has present_weak → You're Ahead
+    expect(allTextCalls.some((t: string) => t.includes("You're Ahead"))).toBe(true);
+    expect(allTextCalls.some((t: string) => t.includes("Pricing & Plans"))).toBe(true);
+
+    // Primary has missing for Social Proof, competitor has present_clear → They're Ahead
+    expect(allTextCalls.some((t: string) => t.includes("They're Ahead"))).toBe(true);
+    expect(allTextCalls.some((t: string) => t.includes("Social Proof & Credibility"))).toBe(true);
+    expect(allTextCalls.some((t: string) => t.includes("Trust, Security & Compliance"))).toBe(true);
+  });
 });
