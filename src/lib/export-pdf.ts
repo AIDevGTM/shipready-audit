@@ -1,452 +1,90 @@
 import jsPDF from "jspdf";
-import { AuditResult, ratingConfig } from "@/lib/audit-types";
-
-const BG: [number, number, number] = [15, 15, 17];
-const WHITE: [number, number, number] = [240, 240, 240];
-const GRAY: [number, number, number] = [160, 160, 160];
-const LIGHT_GRAY: [number, number, number] = [130, 130, 130];
-const GREEN: [number, number, number] = [34, 197, 94];
-const AMBER: [number, number, number] = [245, 158, 11];
-const RED: [number, number, number] = [239, 68, 68];
-const BLUE: [number, number, number] = [96, 165, 250];
-
-const PAGE_W = 210;
-const PAGE_H = 297;
-const MARGIN = 18;
-const CONTENT_W = PAGE_W - MARGIN * 2;
-const BOTTOM_LIMIT = PAGE_H - 20;
-
-function ratingColor(rating: string): [number, number, number] {
-  if (rating === "present_clear") return GREEN;
-  if (rating === "present_weak") return AMBER;
-  return RED;
-}
-
-/**
- * jsPDF built-in fonts are WinAnsi/limited Unicode.
- * When unsupported glyphs appear (✓, •, smart quotes, em-dash), many viewers show bizarre tracking/spacing.
- * Normalize + remap to safe ASCII to keep layout stable.
- */
-function sanitizePdfText(input: string): string {
-  return (
-    input
-      .normalize("NFKD")
-      // Common typography
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\u201C\u201D]/g, '"')
-      .replace(/[\u2013\u2014]/g, "-")
-      .replace(/\u00A0/g, " ")
-      // Bullets/checkmarks
-      .replace(/\u2022/g, "-")
-      .replace(/\u2713/g, "v")
-      .replace(/\u2714/g, "v")
-      .replace(/\u2715/g, "x")
-      // Any remaining non-ASCII -> space (prevents weird kerning)
-      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ")
-      // Collapse accidental runs of spaces
-      .replace(/\s{2,}/g, " ")
-      .trimEnd()
-  );
-}
+import { AuditResult } from "@/lib/audit-types";
+import {
+  PdfContext,
+  BG,
+  WHITE,
+  LIGHT_GRAY,
+  PAGE_W,
+  PAGE_H,
+  MARGIN,
+  CONTENT_W,
+  BOTTOM_LIMIT,
+  sanitizePdfText,
+} from "./pdf/pdf-types";
+import { renderHeader } from "./pdf/pdf-header";
+import { renderScorecard } from "./pdf/pdf-scorecard";
+import { renderFindings } from "./pdf/pdf-findings";
+import { renderCompetitors } from "./pdf/pdf-competitors";
 
 export function exportAuditToPdf(result: AuditResult, competitors?: AuditResult[]) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  let y = MARGIN;
 
-  const paintBg = () => {
-    doc.setFillColor(...BG);
-    doc.rect(0, 0, PAGE_W, PAGE_H, "F");
-  };
+  const ctx: PdfContext = {
+    doc,
+    y: MARGIN,
 
-  const newPage = () => {
-    doc.addPage();
-    paintBg();
-    y = MARGIN;
-  };
+    writeText(text, fontSize, style = "normal", color = WHITE, indent = 0) {
+      const safe = sanitizePdfText(text);
+      if (!safe) return;
 
-  const ensureSpace = (needed: number) => {
-    if (y + needed > BOTTOM_LIMIT) newPage();
-  };
+      doc.setFontSize(fontSize);
+      doc.setFont("helvetica", style);
+      doc.setTextColor(...color);
 
-  /** Write wrapped text lines. Advances y. */
-  const writeText = (
-    text: string,
-    fontSize: number,
-    style: "normal" | "bold" = "normal",
-    color: [number, number, number] = WHITE,
-    indent = 0
-  ) => {
-    const safe = sanitizePdfText(text);
-    if (!safe) return;
+      const maxW = CONTENT_W - indent;
+      const lines: string[] = doc.splitTextToSize(safe, maxW);
+      const lineH = fontSize * 0.45;
 
-    doc.setFontSize(fontSize);
-    doc.setFont("helvetica", style);
-    doc.setTextColor(...color);
-
-    const maxW = CONTENT_W - indent;
-    const lines: string[] = doc.splitTextToSize(safe, maxW);
-    const lineH = fontSize * 0.45; // mm per line
-
-    for (const line of lines) {
-      ensureSpace(lineH + 1);
-      doc.text(line, MARGIN + indent, y);
-      y += lineH;
-    }
-  };
-
-  const gap = (h = 4) => {
-    y += h;
-  };
-
-  const divider = () => {
-    ensureSpace(6);
-    doc.setDrawColor(50, 50, 55);
-    doc.setLineWidth(0.3);
-    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-    y += 5;
-  };
-
-  // ────────────── PAGE 1: HEADER ──────────────
-  paintBg();
-
-  writeText("SHIPREADY", 10, "bold", GREEN);
-  gap(2);
-  writeText("GTM Readiness Audit Report", 20, "bold", WHITE);
-  gap(2);
-  writeText(result.url, 9, "normal", GRAY);
-  gap(1);
-  const now = new Date();
-  writeText(
-    `Generated ${now.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })}`,
-    8,
-    "normal",
-    LIGHT_GRAY
-  );
-  gap(8);
-
-  // ────────────── OVERALL SCORE ──────────────
-  divider();
-
-  const scoreColor =
-    result.overall_score >= 80
-      ? GREEN
-      : result.overall_score >= 50
-        ? AMBER
-        : RED;
-  const scoreLabel =
-    result.overall_score >= 80
-      ? "Launch Ready"
-      : result.overall_score >= 50
-        ? "Strong Foundation, Critical Gaps"
-        : "Needs Significant Work";
-
-  writeText("OVERALL SCORE", 9, "bold", GRAY);
-  gap(6);
-  writeText(`${result.overall_score} / 100`, 26, "bold", scoreColor);
-  gap(3);
-  writeText(scoreLabel, 10, "normal", scoreColor);
-  gap(8);
-
-  // ────────────── WHAT'S WORKING WELL ──────────────
-  if (result.working_well.length > 0) {
-    divider();
-    writeText("WHAT'S WORKING WELL", 10, "bold", GREEN);
-    gap(3);
-    for (const item of result.working_well) {
-      writeText(`- ${item}`, 9, "normal", [200, 215, 200]);
-      gap(1.5);
-    }
-    gap(4);
-  }
-
-  // ────────────── SCORECARD TABLE ──────────────
-  divider();
-  writeText("SCORECARD SUMMARY", 10, "bold", WHITE);
-  gap(4);
-
-  const ROW_H = 8;
-  ensureSpace(ROW_H);
-  doc.setFillColor(30, 30, 35);
-  doc.rect(MARGIN, y, CONTENT_W, ROW_H, "F");
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...GRAY);
-  doc.text("#", MARGIN + 3, y + 5.5);
-  doc.text("Category", MARGIN + 12, y + 5.5);
-  doc.text("Rating", MARGIN + CONTENT_W - 38, y + 5.5);
-  y += ROW_H;
-
-  for (let i = 0; i < result.categories.length; i++) {
-    const cat = result.categories[i];
-    ensureSpace(ROW_H);
-
-    if (i % 2 === 0) {
-      doc.setFillColor(22, 22, 26);
-      doc.rect(MARGIN, y, CONTENT_W, ROW_H, "F");
-    }
-
-    const rowMid = y + 5.5;
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...LIGHT_GRAY);
-    doc.text(String(i + 1).padStart(2, "0"), MARGIN + 3, rowMid);
-
-    doc.setTextColor(...WHITE);
-    doc.text(sanitizePdfText(cat.category), MARGIN + 12, rowMid);
-
-    const rc = ratingColor(cat.rating);
-    const label = sanitizePdfText(ratingConfig[cat.rating].label);
-    doc.setTextColor(...rc);
-    doc.setFont("helvetica", "bold");
-    doc.text(label, MARGIN + CONTENT_W - 38, rowMid);
-
-    y += ROW_H;
-  }
-
-  gap(10);
-
-  // ────────────── DETAILED FINDINGS ──────────────
-  divider();
-  writeText("DETAILED FINDINGS", 12, "bold", WHITE);
-  gap(6);
-
-  for (let i = 0; i < result.categories.length; i++) {
-    const cat = result.categories[i];
-    ensureSpace(25);
-
-    const rc = ratingColor(cat.rating);
-    doc.setFillColor(...rc);
-    doc.rect(MARGIN, y, 2.5, 7, "F");
-
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...WHITE);
-    doc.text(
-      sanitizePdfText(`${String(i + 1).padStart(2, "0")}. ${cat.category}`),
-      MARGIN + 6,
-      y + 5
-    );
-
-    const rLabel = sanitizePdfText(ratingConfig[cat.rating].label);
-    doc.setFontSize(8);
-    doc.setTextColor(...rc);
-    doc.text(rLabel, MARGIN + CONTENT_W - 35, y + 5);
-    y += 10;
-
-    writeText(cat.summary, 9, "normal", GRAY, 6);
-    gap(3);
-
-    if (cat.found.length > 0) {
-      writeText("What We Found:", 8, "bold", GREEN, 6);
-      gap(1);
-      for (const item of cat.found) {
-        writeText(`- ${item}`, 8, "normal", [190, 205, 190], 10);
-        gap(0.5);
+      for (const line of lines) {
+        ctx.ensureSpace(lineH + 1);
+        doc.text(line, MARGIN + indent, ctx.y);
+        ctx.y += lineH;
       }
-      gap(2);
-    }
+    },
 
-    if (cat.missing.length > 0) {
-      writeText("What's Missing:", 8, "bold", RED, 6);
-      gap(1);
-      for (const item of cat.missing) {
-        writeText(`- ${item}`, 8, "normal", [200, 170, 170], 10);
-        gap(0.5);
-      }
-      gap(2);
-    }
+    gap(h = 4) {
+      ctx.y += h;
+    },
 
-    if (cat.recommendations.length > 0) {
-      writeText("Recommendations:", 8, "bold", BLUE, 6);
-      gap(1);
-      for (const item of cat.recommendations) {
-        writeText(`- ${item}`, 8, "normal", [180, 195, 220], 10);
-        gap(0.5);
-      }
-      gap(2);
-    }
+    divider() {
+      ctx.ensureSpace(6);
+      doc.setDrawColor(50, 50, 55);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, ctx.y, PAGE_W - MARGIN, ctx.y);
+      ctx.y += 5;
+    },
 
-    writeText(`Priority: ${cat.priority}`, 7, "bold", LIGHT_GRAY, 6);
-    gap(6);
+    ensureSpace(needed) {
+      if (ctx.y + needed > BOTTOM_LIMIT) ctx.newPage();
+    },
 
-    if (i < result.categories.length - 1) {
-      ensureSpace(4);
-      doc.setDrawColor(40, 40, 45);
-      doc.setLineWidth(0.2);
-      doc.line(MARGIN + 6, y, PAGE_W - MARGIN - 6, y);
-      y += 6;
-    }
-  }
+    newPage() {
+      doc.addPage();
+      doc.setFillColor(...BG);
+      doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+      ctx.y = MARGIN;
+    },
+  };
 
-  // ────────────── COMPETITOR COMPARISON ──────────────
+  // Paint first page background
+  doc.setFillColor(...BG);
+  doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+
+  // Render sections
+  renderHeader(ctx, result);
+  renderScorecard(ctx, result.categories);
+  renderFindings(ctx, result.categories);
+
   if (competitors && competitors.length > 0) {
-    const allResults = [result, ...competitors];
-
-    const getDomain = (url: string): string => {
-      try { return new URL(url).hostname.replace("www.", ""); }
-      catch { return url; }
-    };
-
-    newPage();
-    writeText("COMPETITOR COMPARISON", 12, "bold", WHITE);
-    gap(6);
-
-    // Score overview row
-    const COL_W = CONTENT_W / allResults.length;
-    for (let i = 0; i < allResults.length; i++) {
-      const r = allResults[i];
-      const sc = r.overall_score >= 80 ? GREEN : r.overall_score >= 50 ? AMBER : RED;
-      const x = MARGIN + i * COL_W;
-
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...GRAY);
-      const label = i === 0 ? "YOUR SITE" : "COMPETITOR";
-      doc.text(label, x + COL_W / 2, y, { align: "center" });
-
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...LIGHT_GRAY);
-      doc.text(sanitizePdfText(getDomain(r.url)), x + COL_W / 2, y + 4, { align: "center" });
-
-      doc.setFontSize(20);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...sc);
-      doc.text(String(r.overall_score), x + COL_W / 2, y + 14, { align: "center" });
-    }
-    y += 20;
-    gap(4);
-
-    // Category comparison table
-    const CAT_COL_W = CONTENT_W * 0.4;
-    const RATING_COL_W = (CONTENT_W - CAT_COL_W) / allResults.length;
-    const TBL_ROW_H = 7;
-
-    // Header row
-    ensureSpace(TBL_ROW_H);
-    doc.setFillColor(30, 30, 35);
-    doc.rect(MARGIN, y, CONTENT_W, TBL_ROW_H, "F");
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...GRAY);
-    doc.text("Category", MARGIN + 3, y + 5);
-    for (let i = 0; i < allResults.length; i++) {
-      const lbl = i === 0 ? "You" : sanitizePdfText(getDomain(allResults[i].url));
-      doc.text(lbl, MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5, { align: "center" });
-    }
-    y += TBL_ROW_H;
-
-    // Data rows
-    const AUDIT_CATEGORIES = result.categories.map(c => c.category);
-    for (let ci = 0; ci < AUDIT_CATEGORIES.length; ci++) {
-      const catName = AUDIT_CATEGORIES[ci];
-      ensureSpace(TBL_ROW_H);
-
-      if (ci % 2 === 0) {
-        doc.setFillColor(22, 22, 26);
-        doc.rect(MARGIN, y, CONTENT_W, TBL_ROW_H, "F");
-      }
-
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...WHITE);
-      doc.text(sanitizePdfText(`${String(ci + 1).padStart(2, "0")}  ${catName}`), MARGIN + 3, y + 5);
-
-      for (let i = 0; i < allResults.length; i++) {
-        const cat = allResults[i].categories.find(c => c.category === catName);
-        if (cat) {
-          const rc = ratingColor(cat.rating);
-          const rl = sanitizePdfText(ratingConfig[cat.rating].label);
-          doc.setTextColor(...rc);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(6.5);
-          doc.text(rl, MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5, { align: "center" });
-        } else {
-          doc.setTextColor(...LIGHT_GRAY);
-          doc.setFontSize(7);
-          doc.text("-", MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5, { align: "center" });
-        }
-      }
-      y += TBL_ROW_H;
-    }
-
-    // Overall score row
-    ensureSpace(TBL_ROW_H + 2);
-    doc.setFillColor(30, 30, 35);
-    doc.rect(MARGIN, y, CONTENT_W, TBL_ROW_H + 1, "F");
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...WHITE);
-    doc.text("Overall Score", MARGIN + 3, y + 5.5);
-    for (let i = 0; i < allResults.length; i++) {
-      const r = allResults[i];
-      const sc = r.overall_score >= 80 ? GREEN : r.overall_score >= 50 ? AMBER : RED;
-      doc.setTextColor(...sc);
-      doc.text(String(r.overall_score), MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5.5, { align: "center" });
-    }
-    y += TBL_ROW_H + 2;
-    gap(8);
-
-    // ── Competitive Insights ──
-    const ratingValue = (r: string) =>
-      r === "present_clear" ? 2 : r === "present_weak" ? 1 : 0;
-
-    const ahead: string[] = [];
-    const behind: string[] = [];
-
-    const insightCategories = result.categories.map(c => c.category);
-    for (const catName of insightCategories) {
-      const primaryCat = result.categories.find(c => c.category === catName);
-      if (!primaryCat) continue;
-      const pVal = ratingValue(primaryCat.rating);
-
-      for (const comp of competitors) {
-        const compCat = comp.categories.find(c => c.category === catName);
-        if (!compCat) continue;
-        const cVal = ratingValue(compCat.rating);
-        if (pVal > cVal && !ahead.includes(catName)) ahead.push(catName);
-        else if (pVal < cVal && !behind.includes(catName)) behind.push(catName);
-      }
-    }
-
-    if (ahead.length > 0 || behind.length > 0) {
-      ensureSpace(20);
-      writeText("COMPETITIVE INSIGHTS", 10, "bold", WHITE);
-      gap(4);
-
-      if (ahead.length > 0) {
-        writeText(`You're Ahead (${ahead.length})`, 9, "bold", GREEN);
-        gap(1);
-        for (const cat of ahead) {
-          writeText(`- ${cat}`, 8, "normal", [190, 220, 190]);
-          gap(0.5);
-        }
-        gap(3);
-      }
-
-      if (behind.length > 0) {
-        writeText(`They're Ahead (${behind.length})`, 9, "bold", RED);
-        gap(1);
-        for (const cat of behind) {
-          writeText(`- ${cat}`, 8, "normal", [220, 180, 180]);
-          gap(0.5);
-        }
-        gap(3);
-      }
-    }
-
-    gap(4);
+    renderCompetitors(ctx, result, competitors);
   }
 
-  // ────────────── FOOTER ──────────────
-  gap(8);
-  divider();
-  writeText("Generated by ShipReady - GTM Audit for Dev Tools", 7, "normal", LIGHT_GRAY);
-  writeText("Built by Shane O'Connor @ The DevTool GTM Company", 7, "normal", LIGHT_GRAY);
+  // Footer
+  ctx.gap(8);
+  ctx.divider();
+  ctx.writeText("Generated by ShipReady - GTM Audit for Dev Tools", 7, "normal", LIGHT_GRAY);
+  ctx.writeText("Built by Shane O'Connor @ The DevTool GTM Company", 7, "normal", LIGHT_GRAY);
 
   doc.save(`shipready-audit-${new URL(result.url).hostname}.pdf`);
 }
