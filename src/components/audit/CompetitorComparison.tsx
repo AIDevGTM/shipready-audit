@@ -138,6 +138,32 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
     );
   }
 
+  // Compute insights: categories where primary is ahead or behind each competitor
+  const insights = (() => {
+    const ratingValue = (r: CategoryRating["rating"]) =>
+      r === "present_clear" ? 2 : r === "present_weak" ? 1 : 0;
+
+    const ahead: string[] = [];
+    const behind: string[] = [];
+    const tied: string[] = [];
+
+    for (const catName of AUDIT_CATEGORIES) {
+      const primaryCat = primaryResult.categories.find((c) => c.category === catName);
+      if (!primaryCat) continue;
+      const pVal = ratingValue(primaryCat.rating);
+
+      for (const comp of competitorResults) {
+        const compCat = comp.categories.find((c) => c.category === catName);
+        if (!compCat) continue;
+        const cVal = ratingValue(compCat.rating);
+        if (pVal > cVal && !ahead.includes(catName)) ahead.push(catName);
+        else if (pVal < cVal && !behind.includes(catName)) behind.push(catName);
+        else if (pVal === cVal && !tied.includes(catName) && !ahead.includes(catName) && !behind.includes(catName)) tied.push(catName);
+      }
+    }
+    return { ahead, behind, tied };
+  })();
+
   if (showComparison) {
     return (
       <motion.div
@@ -151,6 +177,36 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
             <X className="w-3.5 h-3.5 mr-1" /> Close
           </Button>
         </div>
+
+        {/* Competitive Insights */}
+        {(insights.ahead.length > 0 || insights.behind.length > 0) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {insights.ahead.length > 0 && (
+              <div className="border border-success/20 bg-success/5 rounded-lg p-4 space-y-2">
+                <h3 className="text-sm font-heading font-semibold text-success flex items-center gap-1.5">
+                  <ArrowRight className="w-3.5 h-3.5 rotate-[-90deg]" /> You're Ahead ({insights.ahead.length})
+                </h3>
+                <ul className="space-y-1">
+                  {insights.ahead.map((cat) => (
+                    <li key={cat} className="text-xs text-muted-foreground font-mono">• {cat}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {insights.behind.length > 0 && (
+              <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-4 space-y-2">
+                <h3 className="text-sm font-heading font-semibold text-destructive flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" /> They're Ahead ({insights.behind.length})
+                </h3>
+                <ul className="space-y-1">
+                  {insights.behind.map((cat) => (
+                    <li key={cat} className="text-xs text-muted-foreground font-mono">• {cat}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Score overview */}
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${allResults.length}, 1fr)` }}>
