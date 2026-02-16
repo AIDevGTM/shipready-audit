@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ExternalLink, ArrowLeft, FileDown, Copy, Check, Wand2 } from "lucide-react";
+import { ExternalLink, ArrowLeft, FileDown, Copy, Check, Wand2, GitCompareArrows } from "lucide-react";
 import { useState } from "react";
 import { AuditResult } from "@/lib/audit-types";
 import { ScoreCircle } from "./ScoreCircle";
@@ -8,6 +8,7 @@ import { WorkingWell } from "./WorkingWell";
 import { NeedsWork } from "./NeedsWork";
 import { CategoryDetail } from "./CategoryDetail";
 import { CopyAsSkillModal } from "./CopyAsSkillModal";
+import { CompetitorComparison } from "./CompetitorComparison";
 import { Button } from "@/components/ui/button";
 import { exportAuditToPdf } from "@/lib/export-pdf";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +21,7 @@ interface AuditResultsProps {
 export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
   const [copied, setCopied] = useState(false);
   const [skillModalOpen, setSkillModalOpen] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const { toast } = useToast();
 
   const handleCopyLink = async () => {
@@ -96,8 +98,18 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
         </div>
       </div>
 
+      {/* Competitor Comparison */}
+      {showComparison && (
+        <CompetitorComparison primaryResult={result} onClose={() => setShowComparison(false)} />
+      )}
+
       {/* Export & Actions */}
       <div className="flex flex-wrap items-center justify-center gap-3 pt-6 border-t border-border">
+        {!showComparison && (
+          <Button onClick={() => setShowComparison(true)} variant="outline" className="font-mono text-sm gap-2">
+            <GitCompareArrows className="w-4 h-4" /> Compare Competitors
+          </Button>
+        )}
         <Button onClick={() => setSkillModalOpen(true)} variant="outline" className="font-mono text-sm gap-2">
           <Wand2 className="w-4 h-4" /> Copy as Skill
         </Button>
