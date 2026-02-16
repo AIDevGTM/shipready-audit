@@ -49,7 +49,7 @@ function sanitizePdfText(input: string): string {
   );
 }
 
-export function exportAuditToPdf(result: AuditResult) {
+export function exportAuditToPdf(result: AuditResult, competitors?: AuditResult[]) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = MARGIN;
 
@@ -280,6 +280,116 @@ export function exportAuditToPdf(result: AuditResult) {
       doc.line(MARGIN + 6, y, PAGE_W - MARGIN - 6, y);
       y += 6;
     }
+  }
+
+  // ────────────── COMPETITOR COMPARISON ──────────────
+  if (competitors && competitors.length > 0) {
+    const allResults = [result, ...competitors];
+
+    const getDomain = (url: string): string => {
+      try { return new URL(url).hostname.replace("www.", ""); }
+      catch { return url; }
+    };
+
+    newPage();
+    writeText("COMPETITOR COMPARISON", 12, "bold", WHITE);
+    gap(6);
+
+    // Score overview row
+    const COL_W = CONTENT_W / allResults.length;
+    for (let i = 0; i < allResults.length; i++) {
+      const r = allResults[i];
+      const sc = r.overall_score >= 80 ? GREEN : r.overall_score >= 50 ? AMBER : RED;
+      const x = MARGIN + i * COL_W;
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...GRAY);
+      const label = i === 0 ? "YOUR SITE" : "COMPETITOR";
+      doc.text(label, x + COL_W / 2, y, { align: "center" });
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...LIGHT_GRAY);
+      doc.text(sanitizePdfText(getDomain(r.url)), x + COL_W / 2, y + 4, { align: "center" });
+
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...sc);
+      doc.text(String(r.overall_score), x + COL_W / 2, y + 14, { align: "center" });
+    }
+    y += 20;
+    gap(4);
+
+    // Category comparison table
+    const CAT_COL_W = CONTENT_W * 0.4;
+    const RATING_COL_W = (CONTENT_W - CAT_COL_W) / allResults.length;
+    const TBL_ROW_H = 7;
+
+    // Header row
+    ensureSpace(TBL_ROW_H);
+    doc.setFillColor(30, 30, 35);
+    doc.rect(MARGIN, y, CONTENT_W, TBL_ROW_H, "F");
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...GRAY);
+    doc.text("Category", MARGIN + 3, y + 5);
+    for (let i = 0; i < allResults.length; i++) {
+      const lbl = i === 0 ? "You" : sanitizePdfText(getDomain(allResults[i].url));
+      doc.text(lbl, MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5, { align: "center" });
+    }
+    y += TBL_ROW_H;
+
+    // Data rows
+    const AUDIT_CATEGORIES = result.categories.map(c => c.category);
+    for (let ci = 0; ci < AUDIT_CATEGORIES.length; ci++) {
+      const catName = AUDIT_CATEGORIES[ci];
+      ensureSpace(TBL_ROW_H);
+
+      if (ci % 2 === 0) {
+        doc.setFillColor(22, 22, 26);
+        doc.rect(MARGIN, y, CONTENT_W, TBL_ROW_H, "F");
+      }
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...WHITE);
+      doc.text(sanitizePdfText(`${String(ci + 1).padStart(2, "0")}  ${catName}`), MARGIN + 3, y + 5);
+
+      for (let i = 0; i < allResults.length; i++) {
+        const cat = allResults[i].categories.find(c => c.category === catName);
+        if (cat) {
+          const rc = ratingColor(cat.rating);
+          const rl = sanitizePdfText(ratingConfig[cat.rating].label);
+          doc.setTextColor(...rc);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6.5);
+          doc.text(rl, MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5, { align: "center" });
+        } else {
+          doc.setTextColor(...LIGHT_GRAY);
+          doc.setFontSize(7);
+          doc.text("-", MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5, { align: "center" });
+        }
+      }
+      y += TBL_ROW_H;
+    }
+
+    // Overall score row
+    ensureSpace(TBL_ROW_H + 2);
+    doc.setFillColor(30, 30, 35);
+    doc.rect(MARGIN, y, CONTENT_W, TBL_ROW_H + 1, "F");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...WHITE);
+    doc.text("Overall Score", MARGIN + 3, y + 5.5);
+    for (let i = 0; i < allResults.length; i++) {
+      const r = allResults[i];
+      const sc = r.overall_score >= 80 ? GREEN : r.overall_score >= 50 ? AMBER : RED;
+      doc.setTextColor(...sc);
+      doc.text(String(r.overall_score), MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5.5, { align: "center" });
+    }
+    y += TBL_ROW_H + 2;
+    gap(6);
   }
 
   // ────────────── FOOTER ──────────────
