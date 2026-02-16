@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Plus, X, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowRight, Plus, X, Loader2, AlertTriangle, GitCompareArrows } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuditResult, CategoryRating, ratingConfig, getScoreColor, AUDIT_CATEGORIES } from "@/lib/audit-types";
@@ -173,9 +173,14 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
       >
         <div className="flex items-center justify-between">
           <h2 className="font-heading font-semibold text-lg">Competitor Comparison</h2>
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-muted-foreground">
-            <X className="w-3.5 h-3.5 mr-1" /> Close
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setCompetitorResults([]); setCompetitorUrls([""]); setErrors([null]); }} className="text-xs gap-1.5 font-mono">
+              <GitCompareArrows className="w-3.5 h-3.5" /> Re-compare
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-muted-foreground">
+              <X className="w-3.5 h-3.5 mr-1" /> Close
+            </Button>
+          </div>
         </div>
 
         {/* Competitive Insights */}
