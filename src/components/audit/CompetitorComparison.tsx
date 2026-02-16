@@ -209,9 +209,9 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
         )}
 
         {/* Score overview */}
-        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${allResults.length}, 1fr)` }}>
+        <div className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:overflow-visible" style={{ gridTemplateColumns: `repeat(${allResults.length}, 1fr)` }}>
           {allResults.map((r, i) => (
-            <div key={r.url} className={`text-center p-4 rounded-lg border ${i === 0 ? "border-primary/30 bg-primary/5" : "border-border bg-secondary/30"}`}>
+            <div key={r.url} className={`text-center p-4 rounded-lg border shrink-0 w-40 sm:w-auto ${i === 0 ? "border-primary/30 bg-primary/5" : "border-border bg-secondary/30"}`}>
               <p className="text-xs font-mono text-muted-foreground mb-2 truncate" title={r.url}>
                 {getDomain(r.url)}
               </p>
@@ -227,9 +227,45 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
           ))}
         </div>
 
-        {/* Category comparison table */}
-        <div className="border border-border rounded-lg overflow-x-auto">
-          {/* Header */}
+        {/* Category comparison — stacked cards on mobile, table on sm+ */}
+        {/* Mobile: stacked cards */}
+        <div className="space-y-3 sm:hidden">
+          {AUDIT_CATEGORIES.map((catName, catIdx) => {
+            return (
+              <div key={catName} className="border border-border rounded-lg p-3 space-y-2">
+                <span className="text-sm font-medium block">
+                  <span className="text-xs font-mono text-muted-foreground mr-2">{String(catIdx + 1).padStart(2, "0")}</span>
+                  {catName}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {allResults.map((r, i) => {
+                    const cat = r.categories.find((c) => c.category === catName);
+                    return (
+                      <div key={r.url} className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                          {i === 0 ? "You" : getDomain(r.url)}:
+                        </span>
+                        {cat ? <RatingBadge rating={cat.rating} /> : <span className="text-xs text-muted-foreground">—</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {/* Mobile overall score */}
+          <div className="border-t-2 border-border pt-3 flex flex-wrap gap-4 justify-center">
+            {allResults.map((r, i) => (
+              <div key={r.url} className="text-center">
+                <span className="text-[10px] font-mono text-muted-foreground block">{i === 0 ? "You" : getDomain(r.url)}</span>
+                <span className="text-lg font-heading font-semibold" style={{ color: getScoreColor(r.overall_score) }}>{r.overall_score}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden sm:block border border-border rounded-lg overflow-x-auto">
           <div
             className="grid gap-2 p-3 bg-secondary/50 text-xs font-mono text-muted-foreground"
             style={{ gridTemplateColumns: `2fr repeat(${allResults.length}, 1fr)` }}
@@ -242,7 +278,6 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
             ))}
           </div>
 
-          {/* Rows */}
           {AUDIT_CATEGORIES.map((catName, catIdx) => (
             <div
               key={catName}
@@ -264,7 +299,6 @@ export const CompetitorComparison = ({ primaryResult, onClose }: CompetitorCompa
             </div>
           ))}
 
-          {/* Score totals row */}
           <div
             className="grid gap-2 p-3 border-t-2 border-border bg-secondary/30 font-semibold"
             style={{ gridTemplateColumns: `2fr repeat(${allResults.length}, 1fr)` }}
