@@ -389,7 +389,57 @@ export function exportAuditToPdf(result: AuditResult, competitors?: AuditResult[
       doc.text(String(r.overall_score), MARGIN + CAT_COL_W + i * RATING_COL_W + RATING_COL_W / 2, y + 5.5, { align: "center" });
     }
     y += TBL_ROW_H + 2;
-    gap(6);
+    gap(8);
+
+    // ── Competitive Insights ──
+    const ratingValue = (r: string) =>
+      r === "present_clear" ? 2 : r === "present_weak" ? 1 : 0;
+
+    const ahead: string[] = [];
+    const behind: string[] = [];
+
+    const insightCategories = result.categories.map(c => c.category);
+    for (const catName of insightCategories) {
+      const primaryCat = result.categories.find(c => c.category === catName);
+      if (!primaryCat) continue;
+      const pVal = ratingValue(primaryCat.rating);
+
+      for (const comp of competitors) {
+        const compCat = comp.categories.find(c => c.category === catName);
+        if (!compCat) continue;
+        const cVal = ratingValue(compCat.rating);
+        if (pVal > cVal && !ahead.includes(catName)) ahead.push(catName);
+        else if (pVal < cVal && !behind.includes(catName)) behind.push(catName);
+      }
+    }
+
+    if (ahead.length > 0 || behind.length > 0) {
+      ensureSpace(20);
+      writeText("COMPETITIVE INSIGHTS", 10, "bold", WHITE);
+      gap(4);
+
+      if (ahead.length > 0) {
+        writeText(`You're Ahead (${ahead.length})`, 9, "bold", GREEN);
+        gap(1);
+        for (const cat of ahead) {
+          writeText(`- ${cat}`, 8, "normal", [190, 220, 190]);
+          gap(0.5);
+        }
+        gap(3);
+      }
+
+      if (behind.length > 0) {
+        writeText(`They're Ahead (${behind.length})`, 9, "bold", RED);
+        gap(1);
+        for (const cat of behind) {
+          writeText(`- ${cat}`, 8, "normal", [220, 180, 180]);
+          gap(0.5);
+        }
+        gap(3);
+      }
+    }
+
+    gap(4);
   }
 
   // ────────────── FOOTER ──────────────
