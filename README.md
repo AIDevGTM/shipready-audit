@@ -1,73 +1,75 @@
-# Welcome to your Lovable project
+<div align="center">
 
-## Project info
+# `>_` ShipReady
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+### Is your AI or dev tool homepage ready to convert?
 
-## How can I edit this code?
+Paste a URL → get a **free, 10-point GTM readiness audit** in ~60 seconds.
+Built for **AI & developer tool** companies who want their homepage to actually sell.
 
-There are several ways of editing your application.
+<p>
+<a href="https://ship-ready.xyz"><img src="https://img.shields.io/badge/Live-ship--ready.xyz-00E0A4?style=for-the-badge&labelColor=0a0f0e" alt="Live site"/></a>
+<img src="https://img.shields.io/badge/audit-10--point-0a0f0e?style=for-the-badge" alt="10-point"/>
+<img src="https://img.shields.io/badge/price-free-0a0f0e?style=for-the-badge" alt="Free"/>
+</p>
 
-**Use Lovable**
+</div>
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## What it does
 
-**Use your preferred IDE**
+ShipReady scans your homepage and scores it across the **10 things that actually move
+GTM for a dev/AI tool** — clarity of value prop, ICP fit, proof, differentiation, CTA,
+docs/DX signals, social proof, and more. You get:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **A scorecard** — an overall grade + a per-category breakdown with ratings
+- **What's working well** — so you don't break what already converts
+- **What needs work** — specific, actionable recommendations, not vague vibes
+- **Copy as an AI skill** — export the findings as a ready-to-paste prompt/skill for your coding agent
+- **A shareable link + PDF** — send the audit to your team or a client
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+> Try it on your own site (or a competitor's): **[ship-ready.xyz](https://ship-ready.xyz)**
 
-Follow these steps:
+## How it works
+
+```
+your URL  →  fetch + analyze homepage  →  10-point GTM rubric  →  scorecard + fixes
+```
+
+The frontend is a single-page app; the analysis runs in a Supabase Edge Function
+(`analyze-site`) that evaluates the page against the rubric and returns structured results.
+
+## Tech
+
+`Vite` · `React` · `TypeScript` · `Tailwind` · `shadcn/ui` · `framer-motion` · `Supabase` (Edge Functions + Postgres)
+
+## Run locally
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone https://github.com/AIDevGTM/shipready-audit.git
+cd shipready-audit
+npm install            # or: bun install
+cp .env.example .env   # add your Supabase project vars
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Environment variables (see `.env.example`):
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_PUBLISHABLE_KEY=...   # anon key — safe for the browser
+VITE_SUPABASE_PROJECT_ID=...
+```
 
-**Use GitHub Codespaces**
+## Tests
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+npm run test           # vitest — PDF export + audit helpers
+```
 
-## What technologies are used for this project?
+---
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+<div align="center">
+<sub>Built by <a href="https://thedevtoolgtmcompany.com">Shane O'Connor</a> · <a href="https://thedevtoolgtmcompany.com">The DevTool GTM Company</a> · <a href="https://www.linkedin.com/in/devtoolgtm/">LinkedIn</a></sub>
+</div>

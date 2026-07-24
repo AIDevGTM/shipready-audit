@@ -147,13 +147,15 @@ const Index = () => {
     <div className="min-h-screen bg-background bg-grid flex flex-col">
       {/* Nav */}
       <header className="flex items-center justify-between px-6 py-4">
-        <span className="font-heading font-bold text-lg tracking-tight">
-          <span className="text-gradient">Ship</span>Ready
+        <span className="flex items-center gap-2 font-heading font-bold text-lg tracking-tight">
+          <span className="font-mono text-sm text-primary border border-primary/30 rounded-md px-1.5 py-0.5 leading-none">&gt;_</span>
+          <span><span className="text-gradient">Ship</span>Ready</span>
         </span>
       </header>
 
       {/* Hero */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 pb-20">
+      <main className="relative flex-1 flex flex-col items-center justify-center px-4 pb-20">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[440px] hero-glow" />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -162,17 +164,17 @@ const Index = () => {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-secondary/50 text-xs font-mono text-muted-foreground">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            10-point GTM audit for dev tools
+            10-point GTM audit · AI &amp; dev tools
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-heading font-bold leading-tight tracking-tight">
-            Is your dev tool website
+          <h1 className="text-4xl sm:text-6xl font-heading font-bold leading-[1.05] tracking-tight">
+            Is your AI or dev tool homepage
             <br />
             <span className="text-gradient">ready to convert?</span>
           </h1>
 
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Paste your dev tool's URL. Get a GTM audit in 60 seconds.
+          <p className="text-muted-foreground text-base max-w-md mx-auto">
+            Paste your URL — get a free, 10-point GTM readiness audit in&nbsp;~60&nbsp;seconds.
           </p>
 
           <form onSubmit={handleSubmit} className="flex gap-2 max-w-lg mx-auto mt-8">
@@ -195,6 +197,10 @@ const Index = () => {
               Run Audit <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
+
+          <p className="text-xs font-mono text-muted-foreground/70">
+            no signup · free · ~60s
+          </p>
         </motion.div>
 
         {/* Feature pills */}
@@ -220,7 +226,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="text-center py-6 space-y-2">
         <p className="text-xs text-muted-foreground">
-          Built by Shane O'Connor
+          Built by <a href="https://thedevtoolgtmcompany.com" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-primary transition-colors">Shane O'Connor</a> · The DevTool GTM Company
         </p>
         <a
           href="https://www.linkedin.com/in/devtoolgtm/"
