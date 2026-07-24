@@ -34,9 +34,9 @@ export const AUDIT_CATEGORIES = [
 ] as const;
 
 export const ratingConfig: Record<RatingLevel, { label: string; color: string; bgClass: string; textClass: string }> = {
-  present_clear: { label: "Present & Clear", color: "hsl(142 71% 45%)", bgClass: "bg-success/10", textClass: "text-success" },
-  present_weak: { label: "Present but Weak", color: "hsl(38 92% 50%)", bgClass: "bg-warning/10", textClass: "text-warning" },
-  missing: { label: "Missing", color: "hsl(0 72% 51%)", bgClass: "bg-destructive/10", textClass: "text-destructive" },
+  present_clear: { label: "Present & Clear", color: "hsl(160 84% 50%)", bgClass: "bg-success/10", textClass: "text-success" },
+  present_weak: { label: "Present but Weak", color: "hsl(38 95% 55%)", bgClass: "bg-warning/10", textClass: "text-warning" },
+  missing: { label: "Missing", color: "hsl(0 74% 56%)", bgClass: "bg-destructive/10", textClass: "text-destructive" },
 };
 
 export function getScoreLabel(score: number): { label: string; colorClass: string } {
@@ -46,7 +46,7 @@ export function getScoreLabel(score: number): { label: string; colorClass: strin
 }
 
 export function getScoreColor(score: number): string {
-  if (score >= 80) return "hsl(142 71% 45%)";
-  if (score >= 50) return "hsl(38 92% 50%)";
-  return "hsl(0 72% 51%)";
+  if (score >= 80) return "hsl(160 84% 50%)";
+  if (score >= 50) return "hsl(38 95% 55%)";
+  return "hsl(0 74% 56%)";
 }

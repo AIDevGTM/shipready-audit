@@ -26,7 +26,7 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
   const { toast } = useToast();
 
   const handleCopyLink = async () => {
-    const appOrigin = "https://ship-readyxyz.lovable.app";
+    const appOrigin = "https://ship-ready.xyz";
     const shareUrl = result.id
       ? `${appOrigin}/?audit=${result.id}`
       : window.location.href;
@@ -61,14 +61,15 @@ export const AuditResults = ({ result, onReset }: AuditResultsProps) => {
         <button onClick={onReset} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> New audit
         </button>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-heading font-bold">GTM Readiness Audit</h1>
-            <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mt-1 font-mono">
-              {result.url} <ExternalLink className="w-3 h-3" />
+        <div className="card-surface rounded-2xl p-6 sm:p-8 flex items-start justify-between gap-6 flex-wrap">
+          <div className="space-y-2 min-w-0">
+            <p className="text-xs font-mono uppercase tracking-[0.2em] text-primary">GTM Readiness Report</p>
+            <h1 className="text-2xl sm:text-3xl font-heading font-bold">Homepage Audit</h1>
+            <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1 font-mono break-all">
+              {result.url} <ExternalLink className="w-3 h-3 shrink-0" />
             </a>
             {result.rendered_with_firecrawl && (
-              <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-mono text-accent-foreground bg-accent/50 px-2 py-0.5 rounded-full">
+              <span className="flex w-fit items-center gap-1 mt-1 text-xs font-mono text-accent-foreground bg-accent/50 px-2 py-0.5 rounded-full">
                 🔥 JS-rendered content detected — analyzed with Firecrawl
               </span>
             )}

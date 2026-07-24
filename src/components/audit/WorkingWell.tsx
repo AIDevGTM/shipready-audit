@@ -12,7 +12,7 @@ export const WorkingWell = ({ items }: WorkingWellProps) => {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-success/20 bg-success/5 p-5"
+      className="rounded-xl border border-success/20 bg-success/5 p-5"
     >
       <h3 className="font-heading font-semibold text-success flex items-center gap-2 mb-3">
         <Sparkles className="w-4 h-4" /> What's Working Well

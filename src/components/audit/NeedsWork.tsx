@@ -18,7 +18,7 @@ export const NeedsWork = ({ categories }: NeedsWorkProps) => {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="rounded-lg border border-warning/20 bg-warning/5 p-5"
+      className="rounded-xl border border-warning/20 bg-warning/5 p-5"
     >
       <h3 className="font-heading font-semibold text-warning flex items-center gap-2 mb-3">
         <AlertTriangle className="w-4 h-4" /> What Needs Work

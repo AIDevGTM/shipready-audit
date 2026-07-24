@@ -23,7 +23,7 @@ export const CategoryDetail = ({ category, index }: CategoryDetailProps) => {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="border border-border rounded-lg overflow-hidden bg-card"
+      className="border border-border rounded-xl overflow-hidden bg-card"
     >
       <button
         onClick={() => setOpen(!open)}

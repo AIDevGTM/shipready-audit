@@ -15,7 +15,7 @@ export const ScoreCircle = ({ score }: ScoreCircleProps) => {
     <div className="flex flex-col items-center gap-4">
       <div className="relative score-circle">
         <svg width="140" height="140" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(240 4% 16%)" strokeWidth="6" />
+          <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(174 12% 15%)" strokeWidth="6" />
           <motion.circle
             cx="60" cy="60" r="54"
             fill="none"

@@ -7,7 +7,7 @@ interface ScorecardTableProps {
 
 export const ScorecardTable = ({ categories }: ScorecardTableProps) => {
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-border rounded-xl overflow-hidden">
       <div className="grid grid-cols-[auto_1fr_auto] gap-4 p-3 bg-secondary/50 text-xs font-mono text-muted-foreground">
         <span className="w-5">#</span>
         <span>Category</span>
