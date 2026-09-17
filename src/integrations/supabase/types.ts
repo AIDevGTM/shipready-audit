@@ -117,7 +117,30 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_public_audit: {
+        Args: { p_id: string }
+        Returns: {
+          categories: Json
+          created_at: string
+          id: string
+          overall_score: number
+          url: string
+          working_well: Json
+        }[]
+      }
+      skill_export_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      track_skill_export: {
+        Args: {
+          p_action: string
+          p_audit_id: string
+          p_format: string
+          p_mode: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

@@ -35,23 +35,21 @@ const Index = () => {
       setState("processing");
       try {
         const { data, error } = await supabase
-          .from("audits_public")
-          .select("*")
-          .eq("id", auditId)
-          .maybeSingle();
+          .rpc("get_public_audit", { p_id: auditId });
 
-        if (error || !data) {
+        const audit = data?.[0];
+        if (error || !audit) {
           toast({ title: "Audit not found", description: "This audit link may be invalid or expired.", variant: "destructive" });
           setState("idle");
           return;
         }
 
         setResult({
-          id: data.id!,
-          url: data.url!,
-          overall_score: data.overall_score!,
-          categories: data.categories as unknown as AuditResult["categories"],
-          working_well: data.working_well as unknown as AuditResult["working_well"],
+          id: audit.id,
+          url: audit.url,
+          overall_score: audit.overall_score,
+          categories: audit.categories as unknown as AuditResult["categories"],
+          working_well: audit.working_well as unknown as AuditResult["working_well"],
         });
         setState("results");
       } catch {

@@ -35,20 +35,19 @@ export const CopyAsSkillModal = ({ open, onOpenChange, result }: CopyAsSkillModa
   useEffect(() => {
     if (!open) return;
     supabase
-      .from("skill_exports")
-      .select("*", { count: "exact", head: true })
-      .then(({ count }) => setExportCount(count ?? 0));
+      .rpc("skill_export_count")
+      .then(({ data }) => setExportCount(Number(data ?? 0)));
   }, [open]);
 
   const content = generateSkillContent(mode, format, result);
 
   const trackExport = async (action: "copy" | "download") => {
     try {
-      await supabase.from("skill_exports").insert({
-        audit_id: result.id ?? null,
-        mode,
-        format,
-        action,
+      await supabase.rpc("track_skill_export", {
+        p_audit_id: result.id ?? null,
+        p_mode: mode,
+        p_format: format,
+        p_action: action,
       });
     } catch {
       // non-critical
