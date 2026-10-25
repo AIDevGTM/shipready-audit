@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { assertPublicUrl, BlockedUrlError, safeFetch } from "./ssrf.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,22 +15,30 @@ function isValidUrl(str: string): boolean {
   }
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
+async function resolveHostIps(hostname: string): Promise<string[]> {
   try {
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ShipReady/1.0; +https://shipready.dev)',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      redirect: 'follow',
-      signal: controller.signal,
-    });
-    return resp;
-  } finally {
-    clearTimeout(id);
+    const [ipv4, ipv6] = await Promise.all([
+      Deno.resolveDns(hostname, 'A').catch(() => [] as string[]),
+      Deno.resolveDns(hostname, 'AAAA').catch(() => [] as string[]),
+    ]);
+    return [...ipv4, ...ipv6];
+  } catch (e) {
+    // DNS resolution is unavailable in this runtime; fall back to the
+    // syntactic hostname checks and keep serving requests.
+    console.warn('DNS lookup unavailable; cannot verify resolved address for', hostname, e);
+    return [];
   }
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
+  return safeFetch(url, {
+    timeoutMs,
+    resolveHost: resolveHostIps,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; ShipReady/1.0; +https://shipready.dev)',
+      'Accept': 'text/html,application/xhtml+xml',
+    },
+  });
 }
 
 Deno.serve(async (req) => {
@@ -59,20 +68,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Block private/internal IPs
-    const hostname = new URL(url).hostname;
-    const isPrivate =
-      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' ||
-      hostname === '::1' ||
-      hostname.startsWith('192.168.') || hostname.startsWith('10.') ||
-      hostname.startsWith('169.254.') ||
-      /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname) ||
-      hostname.startsWith('fe80') || hostname.startsWith('fc00') || hostname.startsWith('fd') ||
-      hostname.includes('::ffff:');
-    if (isPrivate) {
-      return new Response(JSON.stringify({ error: 'Cannot audit internal/private URLs' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Block internal/private targets, including ones reached through a redirect.
+    try {
+      await assertPublicUrl(url, undefined, resolveHostIps);
+    } catch (e) {
+      if (e instanceof BlockedUrlError) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      throw e;
     }
 
     // Rate limiting: extract client IP
@@ -105,6 +110,11 @@ Deno.serve(async (req) => {
     try {
       siteResp = await fetchWithTimeout(url, 15000);
     } catch (e) {
+      if (e instanceof BlockedUrlError) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       if (e instanceof DOMException && e.name === 'AbortError') {
         return new Response(JSON.stringify({ error: 'The site took too long to respond. Please try again.' }), {
           status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
